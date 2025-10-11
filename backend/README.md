@@ -1,6 +1,6 @@
 # RavensRotoWire Backend
 
-Backend service for RavensRotoWire - An AI-powered text-to-SQL and report generation system using AWS SageMaker LLM endpoints.
+Backend service for RavensRotoWire - An AI-powered text-to-SQL and report generation system using AWS SageMaker LLM endpoints. 
 
 ## Architecture
 
