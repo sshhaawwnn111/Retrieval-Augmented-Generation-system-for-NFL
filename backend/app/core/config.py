@@ -4,6 +4,7 @@ Configuration Management for RavensRotoWire Backend
 import os
 from typing import List, Optional
 from pydantic_settings import BaseSettings
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -35,11 +36,25 @@ class Settings(BaseSettings):
     SAGEMAKER_TIMEOUT: int = int(os.getenv("SAGEMAKER_TIMEOUT", "120"))
     SAGEMAKER_MAX_RETRIES: int = int(os.getenv("SAGEMAKER_MAX_RETRIES", "3"))
     
+    # vLLM Service Configuration (for self-hosted LLM)
+    VLLM_SERVICE_URL: str = Field(
+        default="http://localhost:8001",
+        description="Base URL for self-hosted vLLM service"
+    )
+    VLLM_TIMEOUT: float = Field(
+        default=120.0,
+        description="Timeout for vLLM service requests in seconds"
+    )
+    VLLM_MAX_RETRIES: int = Field(
+        default=3,
+        description="Maximum number of retries for vLLM service requests"
+    )
+    
     # LLM Settings
     LLM_MODEL_TYPE: str = os.getenv("LLM_MODEL_TYPE", "vllm")  # vllm or ollama
-    LLM_MAX_TOKENS: int = int(os.getenv("LLM_MAX_TOKENS", "2048"))
-    LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.1"))
-    LLM_TOP_P: float = float(os.getenv("LLM_TOP_P", "0.95"))
+    LLM_MAX_TOKENS: int = Field(default=512, description="Default max tokens to generate")
+    LLM_TEMPERATURE: float = Field(default=0.7, description="Default sampling temperature")
+    LLM_TOP_P: float = Field(default=0.95, description="Default top-p sampling")
     
     # Database Settings (Aurora PostgreSQL)
     DATABASE_HOST: Optional[str] = os.getenv("DATABASE_HOST")

@@ -69,7 +69,7 @@ async def health_check():
     return {
         "status": "healthy",
         "environment": settings.ENVIRONMENT,
-        "sagemaker_endpoint": settings.SAGEMAKER_ENDPOINT_NAME or "not_configured"
+        "vllm_service": settings.VLLM_SERVICE_URL or "not_configured"
     }
 
 
@@ -86,6 +86,7 @@ async def readiness_check():
             status_code=503,
             content={"status": "not_ready", "error": str(e)}
         )
+
 
 
 # Include API routes

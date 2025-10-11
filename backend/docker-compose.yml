@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   backend:
+    image: ravens-backend
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,42 +12,22 @@ services:
     environment:
       - ENVIRONMENT=development
       - DEBUG=true
-      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_REGION=${AWS_REGION:-us-east-2}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - SAGEMAKER_ENDPOINT_NAME=${SAGEMAKER_ENDPOINT_NAME}
-      - DATABASE_HOST=${DATABASE_HOST:-localhost}
-      - DATABASE_PORT=${DATABASE_PORT:-5432}
-      - DATABASE_NAME=${DATABASE_NAME:-ravens_db}
-      - DATABASE_USER=${DATABASE_USER:-postgres}
-      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - VLLM_SERVICE_URL=${VLLM_SERVICE_URL}
+      # - DATABASE_HOST=${DATABASE_HOST:-localhost}
+      # - DATABASE_PORT=${DATABASE_PORT:-5432}
+      # - DATABASE_NAME=${DATABASE_NAME:-ravens_db}
+      # - DATABASE_USER=${DATABASE_USER:-postgres}
+      # - DATABASE_PASSWORD=${DATABASE_PASSWORD}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
     volumes:
       - ./app:/app/app
     networks:
       - ravens-network
-    depends_on:
-      - db
     restart: unless-stopped
 
-  db:
-    image: pgvector/pgvector:pg16
-    container_name: ravens-postgres
-    environment:
-      - POSTGRES_DB=ravens_db
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./data/init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - ravens-network
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
 
 networks:
   ravens-network:

@@ -17,7 +17,8 @@ from app.models.schemas import (
     ReportGenerationRequest,
     ReportGenerationResponse
 )
-from app.services.sagemaker_client import llm_client
+# from app.services.sagemaker_client import llm_client
+from app.services.vllm_client import llm_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
