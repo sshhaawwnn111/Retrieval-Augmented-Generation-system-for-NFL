@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.api import llm_routes
+from app.api import s3_routes
 
 # Configure logging
 logging.basicConfig(
@@ -91,7 +92,7 @@ async def readiness_check():
 
 # Include API routes
 app.include_router(llm_routes.router, prefix="/api/v1", tags=["LLM"])
-
+app.include_router(s3_routes.router, prefix="/api/v1/s3", tags=["S3"])
 
 if __name__ == "__main__":
     import uvicorn

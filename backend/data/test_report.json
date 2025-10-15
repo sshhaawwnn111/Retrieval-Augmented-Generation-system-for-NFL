@@ -1,0 +1,22 @@
+{
+  "report_id": "RPT-2025-1014",
+  "title": "Weekly Performance Report",
+  "team": "Ravens Analytics",
+  "date": "2025-10-14",
+  "summary": "This report summarizes player performance metrics and model predictions for the week.",
+  "metrics": {
+    "avg_accuracy": 0.928,
+    "avg_recall": 0.901,
+    "avg_precision": 0.916
+  },
+  "players": [
+    { "name": "Lamar Jackson", "passing_yards": 245, "rushing_yards": 67, "touchdowns": 3 },
+    { "name": "Zay Flowers", "receptions": 6, "yards": 89, "touchdowns": 1 },
+    { "name": "Mark Andrews", "receptions": 5, "yards": 55, "touchdowns": 1 }
+  ],
+  "notes": [
+    "Overall offensive efficiency increased by 12% from previous week.",
+    "Defensive success rate remained consistent at 81%.",
+    "Continue monitoring QB rushing decision accuracy."
+  ]
+}
