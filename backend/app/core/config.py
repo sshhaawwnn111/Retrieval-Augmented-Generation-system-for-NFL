@@ -5,8 +5,9 @@ import os
 from typing import List, Optional
 from pydantic_settings import BaseSettings
 from pydantic import Field
+from dotenv import load_dotenv
 
-
+load_dotenv()
 class Settings(BaseSettings):
     """Application settings loaded from environment variables"""
     
@@ -30,7 +31,7 @@ class Settings(BaseSettings):
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
     AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
-    
+
     # SageMaker Settings
     SAGEMAKER_ENDPOINT_NAME: Optional[str] = os.getenv("SAGEMAKER_ENDPOINT_NAME")
     SAGEMAKER_TIMEOUT: int = int(os.getenv("SAGEMAKER_TIMEOUT", "120"))
@@ -65,7 +66,8 @@ class Settings(BaseSettings):
     DATABASE_SSL: bool = os.getenv("DATABASE_SSL", "true").lower() == "true"
     
     # S3 Settings
-    S3_BUCKET_NAME: Optional[str] = os.getenv("S3_BUCKET_NAME")
+    S3_REGION: str = os.getenv("AWS_REGION", "us-east-2")
+    S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "ravens-rotowire-reports")
     S3_REPORTS_PREFIX: str = os.getenv("S3_REPORTS_PREFIX", "reports/")
     S3_RAW_DATA_PREFIX: str = os.getenv("S3_RAW_DATA_PREFIX", "raw_data/")
     S3_EMBEDDINGS_PREFIX: str = os.getenv("S3_EMBEDDINGS_PREFIX", "embeddings/")

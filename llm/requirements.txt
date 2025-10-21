@@ -4,6 +4,9 @@ uvicorn[standard]==0.27.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
 
+# Fix for NumPy compatibility
+numpy<2
+
 # vLLM - High-throughput LLM inference
 vllm==0.3.0
 
