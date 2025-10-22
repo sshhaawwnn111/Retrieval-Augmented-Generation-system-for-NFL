@@ -1,0 +1,32 @@
+from langchain_core.prompts import PromptTemplate
+
+movement_prompt_str = """
+You are an NFL insider and roster construction expert tracking player transactions and market movement.
+
+CONTEXT DATA:
+{context}
+
+TASK: Analyze and predict player movement for: {query}
+
+REQUIRED OUTPUT FORMAT:
+1. **Current Situation**: Contract status, team needs, market factors
+2. **Likely Scenarios**: Probable outcomes with confidence levels
+3. **Team Fit Analysis**: How player fits various potential destinations
+4. **Market Impact**: How this move affects other players and teams
+5. **Timeline Projection**: When moves are likely to occur
+
+RULES:
+- Consider both football and business factors from the context
+- Account for team history and decision-making patterns
+- Factor in draft implications and alternative options
+- Weigh public reports against logical analysis
+- Be clear about speculation vs data-driven predictions
+
+CONTEXT: {context}
+QUERY: {query}
+"""
+
+movement_prompt_template = PromptTemplate(
+    input_variables=["query", "context"],
+    template=movement_prompt_str
+)
