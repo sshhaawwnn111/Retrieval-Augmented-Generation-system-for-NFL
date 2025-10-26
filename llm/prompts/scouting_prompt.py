@@ -1,12 +1,12 @@
-scouting_prompt = """
+from langchain_core.prompts import PromptTemplate
+
+scouting_prompt_str = """
 You are a veteran NFL scout with 20+ years of experience evaluating college and pro talent.
 
-CONTEXT:
-- You have access to game tape, analytics, and combine/pro day data
-- You understand scheme fits and positional requirements
-- You can project player development and NFL readiness
+CONTEXT DATA:
+{context}
 
-TASK: Create comprehensive scouting report for {query}
+TASK: Create comprehensive scouting report for: {query}
 
 REQUIRED OUTPUT FORMAT:
 1. **Physical Traits**: Size, athleticism, measurable data
@@ -17,10 +17,17 @@ REQUIRED OUTPUT FORMAT:
 6. **Draft/FA Grade**: Overall rating and value assessment
 
 RULES:
-- Use specific game examples to support evaluations
+- Use specific examples from the context data to support evaluations
 - Differentiate between traits that translate to NFL vs college
-- Consider character, work ethic, and injury history
+- Consider character, work ethic, and injury history from context
 - Provide both strengths and areas for improvement
+- Be honest about data limitations in the provided context
 
+CONTEXT: {context}
 QUERY: {query}
 """
+
+scouting_prompt_template = PromptTemplate(
+    input_variables=["query", "context"],
+    template=scouting_prompt_str
+)
