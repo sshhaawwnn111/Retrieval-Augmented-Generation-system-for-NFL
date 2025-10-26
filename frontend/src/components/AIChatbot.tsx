@@ -3,10 +3,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MessageCircle, X, Send } from "lucide-react";
+import { useGenerateText } from "@/hooks/use-llm";
+
+interface Message {
+  id: number;
+  text: string;
+  isBot: boolean;
+  timestamp: Date;
+}
 
 const AIChatbot = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
       text: "Hi! I'm Hopkins-Rotowire SmartChat 🏈 Ask me about player stats, team performance, injury reports, or any NFL-related questions.",
@@ -15,32 +23,54 @@ const AIChatbot = () => {
     }
   ]);
   const [inputValue, setInputValue] = useState("");
+  const { mutate: generateText, isPending } = useGenerateText();
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isPending) return;
 
-    // Add user message
-    const userMessage = {
+    const userMessage: Message = {
       id: messages.length + 1,
       text: inputValue,
       isBot: false,
       timestamp: new Date()
     };
-
+    
     setMessages(prev => [...prev, userMessage]);
-
-    // Simulate bot response
-    setTimeout(() => {
-      const botResponse = {
-        id: messages.length + 2,
-        text: "I understand you're asking about NFL analytics. While I'm a demo version, our full AI system provides real-time insights on player performance, injury risk assessment, contract analysis, and strategic recommendations for NFL front offices.",
-        isBot: true,
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botResponse]);
-    }, 1000);
-
+    const currentInput = inputValue;
     setInputValue("");
+
+    generateText(
+      {
+        prompt: currentInput,
+        system_prompt: "You are an NFL analytics expert assistant. Provide helpful, accurate information about NFL players, teams, and statistics.",
+        max_tokens: 500,
+        temperature: 0.7
+      },
+      {
+        onSuccess: (response) => {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: Date.now(),
+              text: response.generated_text,
+              isBot: true,
+              timestamp: new Date()
+            }
+          ]);
+        },
+        onError: () => {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: Date.now(),
+              text: "Sorry, I encountered an error. Please try again or check if the backend service is running.",
+              isBot: true,
+              timestamp: new Date()
+            }
+          ]);
+        }
+      }
+    );
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -105,6 +135,7 @@ const AIChatbot = () => {
                 />
                 <Button
                   onClick={handleSendMessage}
+                  disabled={isPending || !inputValue.trim()}
                   size="icon"
                   className="bg-accent hover:bg-accent/90"
                 >
