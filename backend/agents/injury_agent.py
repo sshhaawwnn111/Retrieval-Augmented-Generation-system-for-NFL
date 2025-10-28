@@ -41,28 +41,39 @@ class InjuryAgent:
         self.llm = llm
         self.db = database_connection
         self.chain = injury_prompt_template | llm
-    
+
     def get_injury_data(self, player_name, team):
-        """Business logic to fetch actual injury data"""
+        """Fetch injury data for a given player and team from Rotowire DB"""
         injury_data = {}
-        
-        # Database queries
+
         if self.db:
             try:
-                injury_history = self.db.query(
-                    "SELECT * FROM injuries WHERE player = ? AND team = ?", 
-                    (player_name, team)
-                )
-                injury_data['history'] = injury_history
+                query = """
+                    SELECT headline, notes, analysis, injury_status, injury_detail, date
+                    FROM nfl_news
+                    WHERE LOWER(player_name) LIKE %s
+                    AND LOWER(team_code) LIKE %s
+                    ORDER BY date DESC
+                    LIMIT 5;
+                """
+                self.db.cursor.execute(query, (f"%{player_name.lower()}%", f"%{team.lower()}%"))
+                rows = self.db.cursor.fetchall()
+                injury_data['news'] = [
+                    {
+                        "headline": r[0],
+                        "notes": r[1],
+                        "analysis": r[2],
+                        "injury_status": r[3],
+                        "injury_detail": r[4],
+                        "date": r[5].strftime("%Y-%m-%d"),
+                    }
+                    for r in rows
+                ]
             except Exception as e:
-                print(f"Database query failed: {e}")
-        
-        # Mock medical reports for testing
-        medical_reports = self._fetch_medical_reports(player_name)
-        injury_data['medical_reports'] = medical_reports
+                print(f"❌ Database query failed: {e}")
         
         return injury_data
-    
+
     def _fetch_medical_reports(self, player_name):
         """Private method for data retrieval"""
         # Mock implementation for testing
