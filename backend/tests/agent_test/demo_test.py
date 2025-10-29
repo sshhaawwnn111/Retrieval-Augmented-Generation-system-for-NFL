@@ -8,10 +8,9 @@ sys.path.insert(0, project_root)
 from backend.agents.injury_agent import InjuryAgent
 from backend.agents.db_connection import DatabaseConnection
 from langchain_ollama import ChatOllama
+
+# Initialize LLM
 llm = ChatOllama(model="llama3.2", temperature=0.2)
-
-
-
 
 def main():
     # Connect to DB
@@ -23,18 +22,21 @@ def main():
         port="5432"
     )
 
-    # Initialize LLM (or Mock if not available)
-    #llm = ChatOllama(model="deepseek-r1:32b", temperature=0.2)
-
-    # Create agent
+    # Create agent with LLM and DB
     agent = InjuryAgent(llm, db)
 
-    # Define a test query
-    query = "What is the latest injury update on Joe Burrow?"
+    # Query for Lamar Jackson
+    query = "What info do you have on Lamar Jackson?"
 
     print("🔍 Fetching Rotowire data...")
     data = agent.get_injury_data_from_query(query)
-    print("✅ Retrieved context:", data)
+    if not data:
+        print("⚠️ No recent news found for this player.")
+    else:
+        print("✅ Retrieved context:")
+        for item in data:
+            print(f"- {item['date']}: {item['headline']} "
+                  f"(Status: {item['injury_status']}, Detail: {item['injury_detail']})")
 
     print("\n🧠 Sending to LLM...")
     result = agent.analyze_injury(query)
