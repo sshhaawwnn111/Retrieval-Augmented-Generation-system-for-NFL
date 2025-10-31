@@ -7,35 +7,8 @@ from langchain_core.messages import HumanMessage
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-try:
-    from llm.prompts.injury_prompt import injury_prompt_template
-    print("✅ Loaded injury prompt from llm module")
-except ImportError as e:
-    print(f"❌ Failed to import from llm module: {e}")
-    print(f"🔍 Python path: {sys.path}")
-    # Fallback: define the prompt directly
-    from langchain_core.prompts import PromptTemplate
-    injury_prompt_str = """
-    You are a medical and sports analytics expert specializing in NFL player injuries.
-
-    CONTEXT DATA:
-    {context}
-
-    TASK: Analyze injury data for: {query}
-
-    OUTPUT FORMAT:
-    1. **Current Status**: Injury designation and timeline
-    2. **Medical Analysis**: Injury type and recovery period  
-    3. **Impact Assessment**: Team performance implications
-
-    CONTEXT: {context}
-    QUERY: {query}
-    """
-    
-    injury_prompt_template = PromptTemplate(
-        input_variables=["query", "context"],
-        template=injury_prompt_str
-    )
+from llm.prompts.injury_prompt import injury_prompt_template
+print("✅ Loaded injury prompt from llm module")
 
 # backend/agents/injury_agent.py
 class InjuryAgent:
@@ -77,24 +50,25 @@ class InjuryAgent:
 
     
     def analyze_injury(self, query):
-        context_data = self.get_injury_data_from_query("Lamar Jackson")
+        # Pull context from DB
+        context_data = self.get_injury_data_from_query(query)
 
         if not context_data:
             context_text = "No recent news updates available."
         else:
             context_text = ""
             for item in context_data:
-                context_text += f"{item['date']}: {item['headline']} (Status: {item['injury_status']}, Detail: {item['injury_detail']})\n"
+                context_text += (
+                    f"{item['date']}: {item['headline']} "
+                    f"(Status: {item['injury_status']}, Detail: {item['injury_detail']})\n"
+                )
 
-        prompt = f"""
-        You are an NFL injury analyst.
-        Here is the context about the player from Rotowire database:
-        {context_text}
+        # ✅ Use the PromptTemplate to build the prompt text
+        prompt_text = injury_prompt_template.format(
+            query=query,
+            context=context_text
+        )
 
-        Question: {query}
-        Provide a detailed injury update based on the context.
-        """
-
-        # ✅ Simpler and correct
-        result = self.llm.invoke([HumanMessage(content=prompt)])
+        # Send to model
+        result = self.llm.invoke([HumanMessage(content=prompt_text)])
         return result.content
