@@ -28,17 +28,17 @@ def main():
     # Query for Lamar Jackson
     query = "What info do you have on Lamar Jackson?"
 
-    print("🔍 Fetching Rotowire data...")
+    print("Fetching Rotowire data...")
     data = agent.get_injury_data_from_query(query)
     if not data:
-        print("⚠️ No recent news found for this player.")
+        print("No recent news found for this player.")
     else:
-        print("✅ Retrieved context:")
+        print("Retrieved context:")
         for item in data:
             print(f"- {item['date']}: {item['headline']} "
                   f"(Status: {item['injury_status']}, Detail: {item['injury_detail']})")
 
-    print("\n🧠 Sending to LLM...")
+    print("\nSending to LLM...")
     result = agent.analyze_injury(query)
     print("\n=== LLM OUTPUT ===\n")
     print(result)

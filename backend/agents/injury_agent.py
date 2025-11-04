@@ -8,7 +8,6 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from llm.prompts.injury_prompt import injury_prompt_template
-print("✅ Loaded injury prompt from llm module")
 
 # backend/agents/injury_agent.py
 class InjuryAgent:
@@ -63,7 +62,7 @@ class InjuryAgent:
                     f"(Status: {item['injury_status']}, Detail: {item['injury_detail']})\n"
                 )
 
-        # ✅ Use the PromptTemplate to build the prompt text
+        # Use the PromptTemplate to build the prompt text
         prompt_text = injury_prompt_template.format(
             query=query,
             context=context_text
