@@ -1,67 +1,114 @@
-import requests
-from llm.prompts.performance_prompt import performance_prompt_template
+import json
+from pathlib import Path
+from langchain_core.prompts import PromptTemplate
+
+# Define a structured prompt for analyzing team performance
+performance_prompt_str = """
+You are a sports analytics expert for the Baltimore Ravens, focused on weekly player and team performance.
+
+CONTEXT DATA:
+{context}
+
+TASK: Analyze the data and provide an in-depth performance summary for {query}.
+
+REQUIRED OUTPUT FORMAT:
+1. **Team Summary**: Overall team performance and key metrics (offense, defense, efficiency)
+2. **Top Performers**: Highlight standout players and stats
+3. **Areas for Improvement**: Notable weaknesses or risks
+4. **Analyst Insights**: Data-driven commentary or suggestions
+"""
+
+performance_prompt_template = PromptTemplate(
+    input_variables=["context", "query"],
+    template=performance_prompt_str
+)
+
 
 class PerformanceAgent:
-    def __init__(self, llm, database_connection):
+    """
+    PerformanceAgent handles player and team analytics based on JSON reports or database data.
+    It connects the Ravens database and contextual data files to generate analytical summaries.
+    """
+
+    def __init__(self, llm, database_connection=None, data_dir="data"):
         self.llm = llm
         self.db = database_connection
         self.chain = performance_prompt_template | llm
-    
-    def get_performance_data(self, player_name, team):
-        """Business logic to fetch actual performance data"""
-        # Database queries
-        player_stats = self.db.query(
-            "SELECT * FROM player_stats WHERE player = ? AND team = ?", 
-            (player_name, team)
-        )
-        
-        # API calls to external services
-        advanced_metrics = self._fetch_advanced_metrics(player_name)
-        
-        return {
-            "player_stats": player_stats,
-            "advanced_metrics": advanced_metrics
+        self.data_dir = Path(data_dir)
+
+    def _load_performance_data(self, filename="test_report.json"):
+        """
+        Load local performance report data from the data directory.
+        """
+        path = self.data_dir / filename
+        if not path.exists():
+            raise FileNotFoundError(f"Performance file not found: {path}")
+        with open(path, "r") as f:
+            return json.load(f)
+
+    def _fetch_player_data(self, player_name=None):
+        """
+        Optionally fetch detailed player stats from the database.
+        Works even if DatabaseConnection doesn't define a .query() method.
+        """
+        if not self.db:
+            return None
+
+        try:
+            conn = self.db.conn if hasattr(self.db, "conn") else self.db
+            cursor = conn.cursor()
+
+            if player_name:
+                query = """
+                    SELECT name, position, team, stats
+                    FROM ravens.players
+                    WHERE name ILIKE %s;
+                """
+                cursor.execute(query, (player_name,))
+            else:
+                cursor.execute("SELECT name, position, team, stats FROM ravens.players;")
+
+            rows = cursor.fetchall()
+            players = [
+                {
+                    "name": r[0],
+                    "position": r[1],
+                    "team": r[2],
+                    "stats": r[3]
+                } for r in rows
+            ]
+            cursor.close()
+            return players
+
+        except Exception as e:
+            print(f"⚠️  Database fetch failed: {e}")
+            return None
+
+
+    def analyze_performance(self, query: str):
+        """
+        Combine contextual data and LLM reasoning for detailed analysis.
+        """
+        # Load context from local report
+        report_data = self._load_performance_data()
+
+        # Optional DB enrichment
+        db_data = self._fetch_player_data()
+
+        context = {
+            "report_summary": report_data.get("summary"),
+            "metrics": report_data.get("metrics"),
+            "players": report_data.get("players"),
+            "notes": report_data.get("notes"),
+            "db_players": db_data
         }
-    
-    def _fetch_advanced_metrics(self, player_name):
-        """Private method for data retrieval"""
-        # Actual implementation logic
-        response = requests.get(f"https://database_link/advanced_metrics/{player_name}")
-        return response.json()
-    
-    def analyze_performance(self, query):
-        """Orchestrates the entire analysis process"""
-        # 1. Data gathering (business logic)
-        context_data = self.get_performance_data_from_query(query)
-        
-        # 2. LLM call with enriched context
+
+        context_str = json.dumps(context, indent=2)
+
+        # Run through LLM chain
         result = self.chain.invoke({
-            "query": query,
-            "context": context_data  # Adding real data to prompt
+            "context": context_str,
+            "query": query
         })
-        
-        # 3. Post-processing (business logic)
-        analysis = self._validate_performance_analysis(result.content)
-        
-        return analysis
-    
-    def get_performance_data_from_query(self, query):
-        """Extract and fetch performance data based on query"""
-        player_name, team = self._extract_player_info(query)
-        return self.get_performance_data(player_name, team)
-    
-    def _validate_performance_analysis(self, analysis):
-        """Business logic to verify performance claims"""
-        # Check for statistical significance
-        # Validate against historical data
-        # Flag potential outliers or anomalies
-        pass
-    
-    def _extract_player_info(self, query):
-        """Extract player name and team from query"""
-        # Simple extraction - could use NER in production
-        teams = ["Ravens", "BAL", "Baltimore"]
-        for team in teams:
-            if team.lower() in query.lower():
-                return ("Lamar Jackson", "BAL")  # Simplified
-        return ("Unknown Player", "Unknown Team")
+
+        return result

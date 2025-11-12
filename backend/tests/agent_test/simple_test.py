@@ -43,11 +43,11 @@ def test_agent_structure():
             template="Analyze: {query} with context: {context}"
         )
         
-        print("✅ Can create prompt templates")
+        print("Can create prompt templates")
         return injury_prompt
         
     except Exception as e:
-        print(f"❌ Error creating prompts: {e}")
+        print(f"Error creating prompts: {e}")
         return None
 
 def main():

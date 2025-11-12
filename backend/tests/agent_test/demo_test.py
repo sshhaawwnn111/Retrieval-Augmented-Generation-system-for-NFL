@@ -26,7 +26,7 @@ def main():
     agent = InjuryAgent(llm, db)
 
     # Query for Lamar Jackson
-    query = "What info do you have on Lamar Jackson?"
+    query = "Generate a injury report for Lamar Jackson, Baltimore Ravens"
 
     print("Fetching Rotowire data...")
     data = agent.get_injury_data_from_query(query)

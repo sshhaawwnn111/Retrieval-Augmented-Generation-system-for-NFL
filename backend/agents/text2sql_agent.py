@@ -8,40 +8,9 @@ sys.path.insert(0, project_root)
 
 try:
     from llm.prompts.text2sql_prompt import text2sql_prompt_template
-    print("✅ Loaded text2sql prompt from llm module")
+    print("Loaded text2sql prompt from llm module")
 except ImportError:
-    # Fallback: define the prompt directly
-    print("⚠️ llm module not found, using inline text2sql prompt")
-    text2sql_prompt_str = """
-    You are an expert SQL query generator for NFL databases.
-
-    DATABASE SCHEMA:
-    {schema}
-
-    TASK: Convert the following natural language question into a precise SQL query: {query}
-
-    REQUIRED OUTPUT FORMAT:
-    ```sql
-    -- Your SQL query here
-    SELECT ... FROM ... WHERE ...
-    ```
-
-    RULES:
-    - Output ONLY the SQL query, no explanations
-    - Use proper JOINs and WHERE clauses for efficiency
-    - Handle NULL values appropriately
-    - Use team abbreviations and standard position codes from the schema
-    - Include relevant date ranges and filters
-    - Ensure the query is syntactically correct for SQL
-
-    SCHEMA: {schema}
-    QUESTION: {query}
-    """
-    
-    text2sql_prompt_template = PromptTemplate(
-        input_variables=["query", "schema"],
-        template=text2sql_prompt_str
-    )
+    print("llm module not found")
 
 class TextToSQLAgent:
     def __init__(self, llm, database_connection):
