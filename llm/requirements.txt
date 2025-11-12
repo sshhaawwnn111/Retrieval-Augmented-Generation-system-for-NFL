@@ -4,6 +4,9 @@ uvicorn[standard]==0.27.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
 
+# Fix for NumPy compatibility
+numpy<2
+
 # vLLM - High-throughput LLM inference
 vllm==0.3.0
 
@@ -11,6 +14,9 @@ vllm==0.3.0
 torch==2.1.2
 transformers==4.37.0
 ray==2.9.0
+
+# Reranking
+sentence-transformers==5.1.1
 
 # HTTP and API
 httpx==0.26.0

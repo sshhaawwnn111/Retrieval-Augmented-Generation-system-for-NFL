@@ -23,7 +23,7 @@ def test_data_processing():
     """
     
     data = processor.process_sample_report(sample_content)
-    print("✅ Data processing successful!")
+    print("Data processing successful!")
     print(f"Teams: {list(data.keys())}")
     
     for team, team_data in data.items():
@@ -51,7 +51,7 @@ def test_agent_structure():
         return None
 
 def main():
-    print("🧪 RUNNING SIMPLE TESTS")
+    print("RUNNING SIMPLE TESTS")
     print("=" * 50)
     
     test_data_processing()

@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     
     # vLLM Service Configuration (for self-hosted LLM)
     VLLM_SERVICE_URL: str = Field(
-        default="http://localhost:8001",
+        default="http://18.226.180.255:8001",
         description="Base URL for self-hosted vLLM service"
     )
     VLLM_TIMEOUT: float = Field(

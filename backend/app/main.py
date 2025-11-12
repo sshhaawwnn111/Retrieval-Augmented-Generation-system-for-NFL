@@ -91,7 +91,7 @@ async def readiness_check():
 
 
 # Include API routes
-app.include_router(llm_routes.router, prefix="/api/v1", tags=["LLM"])
+app.include_router(llm_routes.router, prefix="/api/v1/llm", tags=["LLM"])
 app.include_router(s3_routes.router, prefix="/api/v1/s3", tags=["S3"])
 
 if __name__ == "__main__":

@@ -41,3 +41,7 @@ mypy==1.8.0
 
 # Additional Dependencies
 tenacity>=8.2.3
+
+#Embed
+sentence-transformers
+psycopg2-binary

@@ -23,6 +23,7 @@ from schemas import (
     ErrorResponse
 )
 
+
 # Configure logging
 logging.basicConfig(
     level=settings.log_level,

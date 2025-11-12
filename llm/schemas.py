@@ -139,3 +139,21 @@ class ErrorResponse(BaseModel):
                 "detail": "Maximum context length exceeded"
             }
         }
+
+class Document(BaseModel):
+    """
+    Represents a document to be reranked.
+    The reranker model will use the 'content' field.
+    All other fields are passed through.
+    """
+    content: str
+    source: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+class RerankRequest(BaseModel):
+    query: str
+    documents: List[Document]
+    top_n: Optional[int] = 3
+
+class RerankResponse(BaseModel):
+    reranked_documents: List[Document]

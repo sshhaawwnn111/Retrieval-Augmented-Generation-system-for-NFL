@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# System dependencies (sentence-transformers requires git)
+RUN apt-get update && apt-get install -y \
+    git \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency list
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy only backend code
+COPY ./app /app/app
+
+# Default command: run the embedding script
+CMD ["python", "app/api/embed_news.py"]
