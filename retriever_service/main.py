@@ -18,7 +18,6 @@ from .schemas import (
 from .retriever import PGVectorRetriever
 from .reranker import ModelReranker
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -75,28 +74,6 @@ def shutdown_event():
 @app.get("/health")
 def health():
     return {"status": "healthy", "service": "retriever_reranker"}
-
-
-@app.post("/retrieve", response_model=RetrieveResponse)
-def retrieve(req: RetrieveRequest):
-    try:
-        docs = app.state.retriever.search(req.query, k=req.k, sql_override=req.sql)
-        pdocs: List[RetrievedDocument] = [RetrievedDocument(**d) for d in docs]
-        return RetrieveResponse(documents=pdocs)
-    except Exception as e:
-        logger.exception("Retrieve failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/rerank", response_model=RerankResponse)
-def rerank(req: RerankRequest):
-    try:
-        reranked = app.state.reranker.rerank_documents(req.query, [Document(**d.dict()) for d in req.documents], req.top_n or 3)
-        return RerankResponse(reranked_documents=reranked)
-    except Exception as e:
-        logger.exception("Rerank failed: %s", e)
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/retrieve_and_rerank", response_model=RetrieveAndRerankResponse)
 def retrieve_and_rerank(req: RetrieveAndRerankRequest):
