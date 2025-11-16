@@ -1,6 +1,4 @@
-from langchain_core.prompts import PromptTemplate
-
-scouting_prompt_str = """
+SCOUTING_PROMPT = """
 You are a veteran NFL scout with 20+ years of experience evaluating college and pro talent.
 
 CONTEXT DATA:
@@ -26,8 +24,3 @@ RULES:
 CONTEXT: {context}
 QUERY: {query}
 """
-
-scouting_prompt_template = PromptTemplate(
-    input_variables=["query", "context"],
-    template=scouting_prompt_str
-)

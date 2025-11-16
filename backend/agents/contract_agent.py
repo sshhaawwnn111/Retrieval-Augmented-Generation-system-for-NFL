@@ -1,11 +1,11 @@
 import requests
-from llm.prompts.contract_prompt import contract_prompt_template
+from agents.prompts.contract_prompt import CONTRACT_PROMPT
 
 class ContractAgent:
     def __init__(self, llm, database_connection):
         self.llm = llm
         self.db = database_connection
-        self.chain = contract_prompt_template | llm
+        self.chain = CONTRACT_PROMPT | llm
     
     def get_contract_data(self, player_name, team):
         """Business logic to fetch actual contract data"""

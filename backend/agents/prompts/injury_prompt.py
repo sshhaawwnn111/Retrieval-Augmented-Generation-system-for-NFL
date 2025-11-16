@@ -1,6 +1,4 @@
-from langchain_core.prompts import PromptTemplate
-
-injury_prompt_str = """
+INJURY_PROMPT = """
 You are a medical and sports analytics expert specializing in NFL player injuries and recovery timelines.
 
 CONTEXT DATA:
@@ -26,8 +24,3 @@ RULES:
 CONTEXT: {context}
 QUERY: {query}
 """
-
-injury_prompt_template = PromptTemplate(
-    input_variables=["query", "context"],
-    template=injury_prompt_str
-)

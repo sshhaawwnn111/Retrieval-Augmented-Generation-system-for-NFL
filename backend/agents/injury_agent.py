@@ -1,18 +1,9 @@
-# backend/agents/injury_agent.py
-import sys
-import os
-from langchain_core.messages import HumanMessage
+from agents.prompts.injury_prompt import INJURY_PROMPT
 
-# Add the project root to Python path (go up from backend to RavensRotoWire)
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, project_root)
 
-from llm.prompts.injury_prompt import injury_prompt_template
-
-# backend/agents/injury_agent.py
 class InjuryAgent:
     def __init__(self, llm, db):
-        self.llm = llm
+        self.llm = llm  # This is VLLMClient
         self.db = db
         self.conn = self.db.conn
         self.cursor = self.conn.cursor()
@@ -47,8 +38,10 @@ class InjuryAgent:
 
         return data
 
-    
-    def analyze_injury(self, query):
+    async def analyze_injury(self, query):
+        """
+        Analyze injury using VLLMClient (async)
+        """
         # Pull context from DB
         context_data = self.get_injury_data_from_query(query)
 
@@ -63,11 +56,17 @@ class InjuryAgent:
                 )
 
         # Use the PromptTemplate to build the prompt text
-        prompt_text = injury_prompt_template.format(
+        prompt_text = INJURY_PROMPT.format(
             query=query,
             context=context_text
         )
 
-        # Send to model
-        result = self.llm.invoke([HumanMessage(content=prompt_text)])
-        return result.content
+        # Send to VLLMClient (using generate_text instead of invoke)
+        result = await self.llm.generate_text(
+            prompt=prompt_text,
+            system_prompt="You are a professional NFL injury analyst.",
+            temperature=0.7,
+            max_tokens=512
+        )
+        
+        return result

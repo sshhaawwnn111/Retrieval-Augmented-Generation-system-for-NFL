@@ -2,13 +2,12 @@
 import sys
 import os
 from datetime import datetime
-from langchain_core.messages import HumanMessage
 
 # Add project root path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 sys.path.insert(0, project_root)
 
-from backend.agents.injury_agent import InjuryAgent
+from agents.injury_agent import InjuryAgent
 
 class CoordinatorAgent:
     """
@@ -59,7 +58,7 @@ class CoordinatorAgent:
 
         return report_text
 
-    def summarize_injury_sentence(self, player_name: str, analysis_text: str) -> str:
+    async def summarize_injury_sentence(self, player_name: str, analysis_text: str) -> str:
         """
         Summarize the LLM's injury analysis into one sentence per player.
         Uses the LLM to condense the analysis into a concise statement.
@@ -74,7 +73,12 @@ class CoordinatorAgent:
         {analysis_text}
         """
 
-        result = self.llm.invoke([HumanMessage(content=summarization_prompt)])
+        result = await self.llm.generate_text(
+            prompt=summarization_prompt,
+            system_prompt="You are a professional NFL injury analyst.",
+            temperature=0.7,
+            max_tokens=512
+        )
         return f"{player_name}: {result.content.strip()}"
 
     def save_weekly_report_to_db(self, week_number: int, report_text: str):

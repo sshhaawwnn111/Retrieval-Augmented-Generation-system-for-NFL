@@ -24,23 +24,25 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://localhost:8000",
         "https://*.cloudfront.net",
-        "https://*.amplifyapp.com"
+        "https://*.amplifyapp.com",
+        "https://app.ravens-rotowire.com",
+        "https://ravens-rotowire.com",
     ]
     
     # AWS Settings
     AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
     AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
-
-    # SageMaker Settings
-    SAGEMAKER_ENDPOINT_NAME: Optional[str] = os.getenv("SAGEMAKER_ENDPOINT_NAME")
-    SAGEMAKER_TIMEOUT: int = int(os.getenv("SAGEMAKER_TIMEOUT", "120"))
-    SAGEMAKER_MAX_RETRIES: int = int(os.getenv("SAGEMAKER_MAX_RETRIES", "3"))
     
     # vLLM Service Configuration (for self-hosted LLM)
+    VLLM_MODEL_NAME: str = os.getenv("VLLM_MODEL_NAME", "TinyLlama/TinyLlama-1.1B-Chat-v1.0")
     VLLM_SERVICE_URL: str = Field(
         default="http://localhost:8001",
         description="Base URL for self-hosted vLLM service"
+    )
+    RERANKER_SERVICE_URL: str = Field(
+        default="http://localhost:8002",
+        description="Base URL for reranker service"
     )
     VLLM_TIMEOUT: float = Field(
         default=120.0,
@@ -58,19 +60,23 @@ class Settings(BaseSettings):
     LLM_TOP_P: float = Field(default=0.95, description="Default top-p sampling")
     
     # Database Settings (Aurora PostgreSQL)
-    DATABASE_HOST: Optional[str] = os.getenv("DATABASE_HOST")
-    DATABASE_PORT: int = int(os.getenv("DATABASE_PORT", "5432"))
-    DATABASE_NAME: Optional[str] = os.getenv("DATABASE_NAME", "ravens_db")
-    DATABASE_USER: Optional[str] = os.getenv("DATABASE_USER")
+    DATABASE_NAME: Optional[str] = os.getenv("DATABASE_NAME", "ravensrotowire")
+    DATABASE_USER: Optional[str] = os.getenv("DATABASE_USER", "postgres")
     DATABASE_PASSWORD: Optional[str] = os.getenv("DATABASE_PASSWORD")
+    DATABASE_HOST: Optional[str] = os.getenv("DATABASE_HOST", "localhost")
+    DATABASE_READER_HOST: Optional[str] = os.getenv("DATABASE_READER_HOST")
+    DATABASE_PORT: int = int(os.getenv("DATABASE_PORT", "5432"))
     DATABASE_SSL: bool = os.getenv("DATABASE_SSL", "true").lower() == "true"
     
+
     # S3 Settings
     S3_REGION: str = os.getenv("AWS_REGION", "us-east-2")
     S3_BUCKET_NAME: str = os.getenv("S3_BUCKET_NAME", "ravens-rotowire-reports")
     S3_REPORTS_PREFIX: str = os.getenv("S3_REPORTS_PREFIX", "reports/")
     S3_RAW_DATA_PREFIX: str = os.getenv("S3_RAW_DATA_PREFIX", "raw_data/")
     S3_EMBEDDINGS_PREFIX: str = os.getenv("S3_EMBEDDINGS_PREFIX", "embeddings/")
+
+
     
     # CloudWatch Settings
     CLOUDWATCH_LOG_GROUP: str = os.getenv("CLOUDWATCH_LOG_GROUP", "/aws/ecs/ravens-rotowire")
@@ -78,6 +84,9 @@ class Settings(BaseSettings):
     
     # pgvector Settings
     EMBEDDING_DIMENSION: int = int(os.getenv("EMBEDDING_DIMENSION", "1536"))
+    
+    # Reranker Service Configuration
+    RERANKER_SERVICE_URL: Optional[str] = os.getenv("RERANKER_SERVICE_URL")
     
     class Config:
         env_file = ".env"
