@@ -5,18 +5,14 @@ from typing import List
 from fastapi import FastAPI, HTTPException
 import psycopg2
 
-from .schemas import (
-    RetrieveRequest,
-    RetrieveResponse,
+from schemas import (
     RetrievedDocument,
-    RerankRequest,
-    RerankResponse,
     Document,
     RetrieveAndRerankRequest,
     RetrieveAndRerankResponse,
 )
-from .retriever import PGVectorRetriever
-from .reranker import ModelReranker
+from retriever import PGVectorRetriever
+from reranker import ModelReranker
 from fastapi.middleware.cors import CORSMiddleware
 
 logging.basicConfig(level=logging.INFO)
@@ -37,7 +33,6 @@ def get_db_connection():
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
         return psycopg2.connect(database_url)
-
     params = {
         "dbname": os.environ.get("PGDATABASE", "postgres"),
         "user": os.environ.get("PGUSER", "postgres"),
@@ -75,54 +70,130 @@ def shutdown_event():
 def health():
     return {"status": "healthy", "service": "retriever_reranker"}
 
-@app.post("/retrieve_and_rerank", response_model=RetrieveAndRerankResponse)
-def retrieve_and_rerank(req: RetrieveAndRerankRequest):
+@app.post("/retrieve", response_model=List[Document])
+def retrieve(req: RetrieveAndRerankRequest):
     try:
-        candidates = app.state.retriever.search(req.query, k=req.k, sql_override=req.sql)
+        candidates = app.state.retriever.search(
+            req.query,
+            k=req.k,
+            sql_override=req.sql
+        )
+
         docs_for_rerank: List[Document] = []
         for d in candidates:
             meta = {
                 "doc_id": d.get("doc_id"),
-                "row_number": d.get("row_number"),
-                "player_name": d.get("player_name"),
                 "headline": d.get("headline"),
                 "date": d.get("date"),
-                "injury_status": d.get("injury_status"),
-                "injury_detail": d.get("injury_detail"),
                 "citation": d.get("citation"),
             }
-            docs_for_rerank.append(Document(content=d.get("context_text", ""), metadata=meta))
+            docs_for_rerank.append(
+                Document(content=d.get("context_text", ""), metadata=meta)
+            )
 
-        top_n = req.top_n if req.top_n is not None else req.k
+        return docs_for_rerank
 
-        reranked = app.state.reranker.rerank_documents(req.query, docs_for_rerank, top_n)
+    except Exception as e:
+        logger.exception("Retrieve failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/rerank", response_model=List[RetrievedDocument])
+def rerank(query_and_docs: dict):
+    """
+    Expected payload:
+    {
+        "query": "...",
+        "documents": [ {content, metadata}, ... ],
+        "top_n": 5
+    }
+    """
+    try:
+        query = query_and_docs["query"]
+        docs = query_and_docs["documents"]
+        top_n = query_and_docs.get("top_n", len(docs))
+
+        # Convert input docs into Document objects
+        docs_for_rerank = [
+            Document(content=d["content"], metadata=d.get("metadata", {}))
+            for d in docs
+        ]
+
+        reranked = app.state.reranker.rerank_documents(
+            query,
+            docs_for_rerank,
+            top_n
+        )
 
         response_docs: List[RetrievedDocument] = []
         for doc in reranked:
             meta = doc.metadata or {}
-            response_docs.append(RetrievedDocument(
-                doc_id=meta.get("doc_id"),
-                row_number=meta.get("row_number"),
-                player_name=meta.get("player_name"),
-                headline=meta.get("headline"),
-                date=meta.get("date"),
-                injury_status=meta.get("injury_status"),
-                injury_detail=meta.get("injury_detail"),
-                citation=meta.get("citation") or "",
-                context_text=doc.content,
-            ))
+            response_docs.append(
+                RetrievedDocument(
+                    doc_id=meta.get("doc_id"),
+                    row_number=meta.get("row_number"),
+                    player_name=meta.get("player_name"),
+                    headline=meta.get("headline"),
+                    date=meta.get("date"),
+                    citation=meta.get("citation") or "",
+                    context_text=doc.content,
+                )
+            )
+
+        return response_docs
+
+    except Exception as e:
+        logger.exception("Rerank failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/retrieve_and_rerank", response_model=RetrieveAndRerankResponse)
+def retrieve_and_rerank(req: RetrieveAndRerankRequest):
+    try:
+        # 1. retrieval
+        candidates = app.state.retriever.search(req.query, k=req.k, sql_override=req.sql)
+
+        docs_for_rerank: List[Document] = []
+        for d in candidates:
+            meta = {
+                "doc_id": d.get("doc_id"),
+                "headline": d.get("headline"),
+                "date": d.get("date"),
+                "citation": d.get("citation"),
+            }
+            docs_for_rerank.append(Document(content=d.get("context_text", ""), metadata=meta))
+
+        # 2. reranking
+        top_n = req.top_n if req.top_n is not None else req.k
+        reranked = app.state.reranker.rerank_documents(req.query, docs_for_rerank, top_n)
+
+        # 3. Marshal response
+        response_docs: List[RetrievedDocument] = []
+        for doc in reranked:
+            meta = doc.metadata or {}
+            response_docs.append(
+                RetrievedDocument(
+                    doc_id=meta.get("doc_id"),
+                    row_number=meta.get("row_number"),
+                    player_name=meta.get("player_name"),
+                    headline=meta.get("headline"),
+                    date=meta.get("date"),
+                    citation=meta.get("citation") or "",
+                    context_text=doc.content,
+                )
+            )
 
         return RetrieveAndRerankResponse(documents=response_docs)
+
     except Exception as e:
         logger.exception("Retrieve+Rerank failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
     
-# if __name__ == "__main__":
-#     uvicorn.run(
-#         "main:app",
-#         host=settings.service_host,
-#         port=settings.service_port,
-#         log_level=settings.log_level.lower(),
-#         reload=False
-#     )
-
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=False
+    )

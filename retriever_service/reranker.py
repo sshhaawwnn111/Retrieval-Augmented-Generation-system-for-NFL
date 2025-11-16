@@ -1,7 +1,7 @@
 import logging
 from typing import List
 from sentence_transformers.cross_encoder import CrossEncoder
-from .schemas import Document
+from schemas import Document
 
 logger = logging.getLogger(__name__)
 
