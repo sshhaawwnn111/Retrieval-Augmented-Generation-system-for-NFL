@@ -3,11 +3,7 @@ import sys
 import os
 from datetime import datetime
 
-# Add project root path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-sys.path.insert(0, project_root)
-
-from agents.injury_agent import InjuryAgent
+from app.agents.injury_agent import InjuryAgent
 
 class CoordinatorAgent:
     """
@@ -18,8 +14,6 @@ class CoordinatorAgent:
     def __init__(self, llm, db):
         self.llm = llm
         self.db = db
-        self.conn = db.conn
-        self.cursor = self.conn.cursor()
         self.injury_agent = InjuryAgent(llm, db)
 
         # Default starting lineup (you can update dynamically)
@@ -84,10 +78,10 @@ class CoordinatorAgent:
     def save_weekly_report_to_db(self, week_number: int, report_text: str):
         """
         Store the generated weekly report in a table `injury_reports`.
-        Creates the table if it doesn’t exist.
+        Creates the table if it doesn't exist.
         """
-
-        self.cursor.execute("""
+        # Create table using db.execute_query()
+        self.db.execute_query("""
             CREATE TABLE IF NOT EXISTS injury_reports (
                 id SERIAL PRIMARY KEY,
                 week_number INTEGER,
@@ -95,24 +89,22 @@ class CoordinatorAgent:
                 created_at TIMESTAMP DEFAULT NOW()
             )
         """)
-        self.conn.commit()
 
-        self.cursor.execute(
+        # Insert report
+        self.db.execute_query(
             """
             INSERT INTO injury_reports (week_number, report_text, created_at)
             VALUES (%s, %s, %s)
             """,
             (week_number, report_text, datetime.now())
         )
-        self.conn.commit()
 
     def get_past_report(self, week_number: int):
         """
         Retrieve a previously generated weekly injury report from the database.
         """
-        self.cursor.execute(
+        result = self.db.execute_query(
             "SELECT report_text FROM injury_reports WHERE week_number = %s ORDER BY created_at DESC LIMIT 1",
             (week_number,)
         )
-        row = self.cursor.fetchone()
-        return row[0] if row else None
+        return result[0][0] if result else None

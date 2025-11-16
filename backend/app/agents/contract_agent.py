@@ -1,38 +1,38 @@
 import requests
-from agents.prompts.movement_prompt import MOVEMENT_PROMPT
+from app.agents.prompts.contract_prompt import CONTRACT_PROMPT
 
-class MovementAgent:
+class ContractAgent:
     def __init__(self, llm, database_connection):
         self.llm = llm
         self.db = database_connection
-        self.chain = MOVEMENT_PROMPT | llm
+        self.chain = CONTRACT_PROMPT | llm
     
-    def get_movement_data(self, player_name, team):
-        """Business logic to fetch actual player movement data"""
+    def get_contract_data(self, player_name, team):
+        """Business logic to fetch actual contract data"""
         # Database queries
-        transaction_history = self.db.query(
-            "SELECT * FROM transactions WHERE player = ? AND team = ?", 
+        contract_details = self.db.query(
+            "SELECT * FROM contracts WHERE player = ? AND team = ?", 
             (player_name, team)
         )
         
         # API calls to external services
-        market_analysis = self._fetch_market_data(player_name)
+        salary_cap_info = self._fetch_salary_cap_data(player_name, team)
         
         return {
-            "transaction_history": transaction_history,
-            "market_analysis": market_analysis
+            "contract_details": contract_details,
+            "salary_cap_info": salary_cap_info
         }
     
-    def _fetch_market_data(self, player_name):
+    def _fetch_salary_cap_data(self, player_name, team):
         """Private method for data retrieval"""
         # Actual implementation logic
-        response = requests.get(f"https://database_link/market_analysis/{player_name}")
+        response = requests.get(f"https://database_link/salary_cap/{team}/{player_name}")
         return response.json()
     
-    def analyze_movement(self, query):
+    def analyze_contract(self, query):
         """Orchestrates the entire analysis process"""
         # 1. Data gathering (business logic)
-        context_data = self.get_movement_data_from_query(query)
+        context_data = self.get_contract_data_from_query(query)
         
         # 2. LLM call with enriched context
         result = self.chain.invoke({
@@ -41,20 +41,20 @@ class MovementAgent:
         })
         
         # 3. Post-processing (business logic)
-        analysis = self._validate_movement_analysis(result.content)
+        analysis = self._validate_contract_analysis(result.content)
         
         return analysis
     
-    def get_movement_data_from_query(self, query):
-        """Extract and fetch movement data based on query"""
+    def get_contract_data_from_query(self, query):
+        """Extract and fetch contract data based on query"""
         player_name, team = self._extract_player_info(query)
-        return self.get_movement_data(player_name, team)
+        return self.get_contract_data(player_name, team)
     
-    def _validate_movement_analysis(self, analysis):
-        """Business logic to verify movement claims"""
-        # Check for CBA rule compliance
-        # Validate against transaction history
-        # Flag potential timing or procedural issues
+    def _validate_contract_analysis(self, analysis):
+        """Business logic to verify contract claims"""
+        # Check for salary cap compliance
+        # Validate against CBA rules
+        # Flag potential calculation errors
         pass
     
     def _extract_player_info(self, query):

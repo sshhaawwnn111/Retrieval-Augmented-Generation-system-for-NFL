@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     ]
     
     # AWS Settings
-    AWS_REGION: str = os.getenv("AWS_REGION", "us-east-1")
+    AWS_REGION: str = os.getenv("AWS_REGION", "us-east-2")
     AWS_ACCESS_KEY_ID: Optional[str] = os.getenv("AWS_ACCESS_KEY_ID")
     AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
     
@@ -60,14 +60,15 @@ class Settings(BaseSettings):
     LLM_TOP_P: float = Field(default=0.95, description="Default top-p sampling")
     
     # Database Settings (Aurora PostgreSQL)
-    DATABASE_NAME: Optional[str] = os.getenv("DATABASE_NAME", "ravensrotowire")
+    DATABASE_NAME: Optional[str] = os.getenv("DATABASE_NAME", "Ravensrotowire")
     DATABASE_USER: Optional[str] = os.getenv("DATABASE_USER", "postgres")
     DATABASE_PASSWORD: Optional[str] = os.getenv("DATABASE_PASSWORD")
     DATABASE_HOST: Optional[str] = os.getenv("DATABASE_HOST", "localhost")
     DATABASE_READER_HOST: Optional[str] = os.getenv("DATABASE_READER_HOST")
     DATABASE_PORT: int = int(os.getenv("DATABASE_PORT", "5432"))
     DATABASE_SSL: bool = os.getenv("DATABASE_SSL", "true").lower() == "true"
-    
+    USE_SECRETS_MANAGER: bool = os.getenv("USE_SECRETS_MANAGER", "true").lower() == "true"
+    DATABASE_SECRET_NAME: Optional[str] = os.getenv("DATABASE_SECRET_NAME", "rds!cluster-8d6049d8-e87d-4a83-a77d-63030ce4d651")
 
     # S3 Settings
     S3_REGION: str = os.getenv("AWS_REGION", "us-east-2")

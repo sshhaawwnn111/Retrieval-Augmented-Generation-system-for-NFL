@@ -5,8 +5,8 @@ Advanced agent routing with CoordinatorAgent
 import logging
 from fastapi import APIRouter, HTTPException, status, Depends
 
-from agents.coordinator import CoordinatorAgent
-from agents.db_connection import DatabaseConnection
+from app.agents.coordinator import CoordinatorAgent
+from app.agents.db_connection import DatabaseConnection
 from app.services.vllm_client import llm_client
 from app.core.config import settings
 
@@ -28,7 +28,7 @@ def get_db(use_writer: bool = False):
 
 
 @router.post("/weekly-report")
-async def generate_weekly_report(week_number: int, db: DatabaseConnection = Depends(get_db)):
+async def generate_weekly_report(week_number: int, db: DatabaseConnection = Depends(get_db(use_writer=True))):
     """
     Generate comprehensive weekly injury report for all starting players
     
