@@ -1,11 +1,11 @@
 import requests
-from llm.prompts.scouting_prompt import scouting_prompt_template
+from agents.prompts.scouting_prompt import SCOUTING_PROMPT
 
 class ScoutingAgent:
     def __init__(self, llm, database_connection):
         self.llm = llm
         self.db = database_connection
-        self.chain = scouting_prompt_template | llm
+        self.chain = SCOUTING_PROMPT | llm
     
     def get_scouting_data(self, player_name, team=None):
         """Business logic to fetch actual scouting data"""

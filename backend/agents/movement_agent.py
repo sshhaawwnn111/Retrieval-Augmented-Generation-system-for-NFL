@@ -1,11 +1,11 @@
 import requests
-from llm.prompts.movement_prompt import movement_prompt_template
+from agents.prompts.movement_prompt import MOVEMENT_PROMPT
 
 class MovementAgent:
     def __init__(self, llm, database_connection):
         self.llm = llm
         self.db = database_connection
-        self.chain = movement_prompt_template | llm
+        self.chain = MOVEMENT_PROMPT | llm
     
     def get_movement_data(self, player_name, team):
         """Business logic to fetch actual player movement data"""

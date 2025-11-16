@@ -1,6 +1,4 @@
-from langchain_core.prompts import PromptTemplate
-
-movement_prompt_str = """
+MOVEMENT_PROMPT = """
 You are an NFL insider and roster construction expert tracking player transactions and market movement.
 
 CONTEXT DATA:
@@ -25,8 +23,3 @@ RULES:
 CONTEXT: {context}
 QUERY: {query}
 """
-
-movement_prompt_template = PromptTemplate(
-    input_variables=["query", "context"],
-    template=movement_prompt_str
-)

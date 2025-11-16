@@ -1,6 +1,4 @@
-from langchain_core.prompts import PromptTemplate
-
-contract_prompt_str = """
+CONTRACT_PROMPT = """
 You are an NFL salary cap expert and contract analyst with deep knowledge of CBA rules and market trends.
 
 CONTEXT DATA:
@@ -25,8 +23,3 @@ RULES:
 CONTEXT: {context}
 QUERY: {query}
 """
-
-contract_prompt_template = PromptTemplate(
-    input_variables=["query", "context"],
-    template=contract_prompt_str
-)

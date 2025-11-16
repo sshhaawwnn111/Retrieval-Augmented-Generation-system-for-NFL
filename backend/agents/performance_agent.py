@@ -1,9 +1,8 @@
 import json
 from pathlib import Path
-from langchain_core.prompts import PromptTemplate
 
 # Define a structured prompt for analyzing team performance
-performance_prompt_str = """
+PERFORMANCE_PROMPT = """
 You are a sports analytics expert for the Baltimore Ravens, focused on weekly player and team performance.
 
 CONTEXT DATA:
@@ -18,10 +17,6 @@ REQUIRED OUTPUT FORMAT:
 4. **Analyst Insights**: Data-driven commentary or suggestions
 """
 
-performance_prompt_template = PromptTemplate(
-    input_variables=["context", "query"],
-    template=performance_prompt_str
-)
 
 
 class PerformanceAgent:
@@ -33,7 +28,7 @@ class PerformanceAgent:
     def __init__(self, llm, database_connection=None, data_dir="data"):
         self.llm = llm
         self.db = database_connection
-        self.chain = performance_prompt_template | llm
+        self.chain = PERFORMANCE_PROMPT | llm
         self.data_dir = Path(data_dir)
 
     def _load_performance_data(self, filename="test_report.json"):
