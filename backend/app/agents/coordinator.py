@@ -1,6 +1,4 @@
 # backend/agents/coordinator_agent.py
-import sys
-import os
 from datetime import datetime
 
 from app.agents.injury_agent import InjuryAgent
