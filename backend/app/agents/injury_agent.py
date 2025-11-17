@@ -1,68 +1,55 @@
 from app.agents.prompts.injury_prompt import INJURY_PROMPT
-
+from schemas import Document
 
 class InjuryAgent:
-    def __init__(self, llm, db):
-        self.llm = llm  # This is VLLMClient
-        self.db = db  # This is DatabaseConnection
+    def __init__(self, llm, db, retriever, reranker):
+        self.llm = llm            # VLLMClient
+        self.db = db              # DatabaseConnection (optional)
+        self.retriever = retriever  # PGVectorRetriever
+        self.reranker = reranker    # ModelReranker
 
-    def get_injury_data_from_query(self, query):
-        # Extract player name from query (simplest approach)
-        player_name = "Lamar Jackson"  # you can improve by NLP parsing the query
-        
-        rows = self.db.execute_query(
-            """
-            SELECT player_name, headline, date, injury_status, injury_detail
-            FROM nfl_news
-            WHERE player_name ILIKE %s
-            ORDER BY date DESC
-            LIMIT 10
-            """,
-            (f"%{player_name}%",)
-        )
-
-        # Convert to list of dicts
-        data = []
-        for row in rows:
-            data.append({
-                "player_name": row[0],
-                "headline": row[1],
-                "date": row[2].strftime("%Y-%m-%d %H:%M:%S"),
-                "injury_status": row[3],
-                "injury_detail": row[4]
-            })
-
-        return data
-
-    async def analyze_injury(self, query):
+    async def analyze_injury(self, query: str):
         """
-        Analyze injury using VLLMClient (async)
+        Full pipeline:
+        1. Retriever embeds + fetches candidates
+        2. Reranker scores them
+        3. LLM analyzes using top context
         """
-        # Pull context from DB
-        context_data = self.get_injury_data_from_query(query)
 
-        if not context_data:
-            context_text = "No recent news updates available."
-        else:
-            context_text = ""
-            for item in context_data:
-                context_text += (
-                    f"{item['date']}: {item['headline']} "
-                    f"(Status: {item['injury_status']}, Detail: {item['injury_detail']})\n"
+        # Step 1 — Retrieve semantic candidates from Postgres
+        raw_docs = self.retriever.search(query, k=10)
+
+        # Convert raw docs to Document objects expected by reranker
+        docs = []
+        for d in raw_docs:
+            docs.append(
+                Document(
+                    id=str(d["doc_id"]),
+                    content=d["context_text"]
                 )
+            )
 
-        # Use the PromptTemplate to build the prompt text
+        # Step 2 — Rerank to get best 5
+        top_docs = self.reranker.rerank_documents(query, docs, top_n=5)
+
+        # Build the final context
+        if not top_docs:
+            context_text = "No relevant injury news available."
+        else:
+            context_text = "\n".join([doc.content for doc in top_docs])
+
+        # Step 3 — Build final prompt
         prompt_text = INJURY_PROMPT.format(
             query=query,
             context=context_text
         )
 
-        # Send to VLLMClient (using generate_text instead of invoke)
+        # Step 4 — LLM analysis
         result = await self.llm.generate_text(
             prompt=prompt_text,
             system_prompt="You are a professional NFL injury analyst.",
-            temperature=0.7,
+            temperature=0.3,
             max_tokens=512
         )
-        
-        return result
+
+        return result.content.strip()
