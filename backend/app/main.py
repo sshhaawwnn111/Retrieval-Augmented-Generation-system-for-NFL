@@ -123,7 +123,8 @@ async def health_check():
         
         # vLLM Service
         "vllm": {
-            "service_url": settings.VLLM_SERVICE_URL,
+            "llm service_url": settings.VLLM_SERVICE_URL,
+            "retriever service_url": settings.RETRIEVER_SERVICE_URL,
             "model_name": settings.VLLM_MODEL_NAME,
             "timeout": settings.VLLM_TIMEOUT,
             "max_retries": settings.VLLM_MAX_RETRIES,
