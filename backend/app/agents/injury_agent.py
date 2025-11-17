@@ -4,15 +4,13 @@ from app.agents.prompts.injury_prompt import INJURY_PROMPT
 class InjuryAgent:
     def __init__(self, llm, db):
         self.llm = llm  # This is VLLMClient
-        self.db = db
-        self.conn = self.db.conn
-        self.cursor = self.conn.cursor()
+        self.db = db  # This is DatabaseConnection
 
     def get_injury_data_from_query(self, query):
         # Extract player name from query (simplest approach)
         player_name = "Lamar Jackson"  # you can improve by NLP parsing the query
         
-        self.cursor.execute(
+        rows = self.db.execute_query(
             """
             SELECT player_name, headline, date, injury_status, injury_detail
             FROM nfl_news
@@ -22,8 +20,6 @@ class InjuryAgent:
             """,
             (f"%{player_name}%",)
         )
-
-        rows = self.cursor.fetchall()
 
         # Convert to list of dicts
         data = []

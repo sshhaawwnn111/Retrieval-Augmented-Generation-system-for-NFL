@@ -46,7 +46,7 @@ class CoordinatorAgent:
         report_text = "\n".join(full_report)
 
         # Save to DB for tracking historical reports
-        self.save_weekly_report_to_db(week_number, report_text)
+        # self.save_weekly_report_to_db(week_number, report_text)
 
         return report_text
 
