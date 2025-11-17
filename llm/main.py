@@ -42,16 +42,19 @@ async def lifespan(app: FastAPI):
     Handles startup and shutdown events.
     """
     global engine
+    global reranker_service
     
     # Startup: Initialize vLLM engine
     logger.info("Initializing vLLM engine...")
     logger.info(f"Model: {settings.model_name}")
     logger.info(f"Tensor Parallel Size: {settings.tensor_parallel_size}")
+    logger.info(f"Data Type: {settings.model_dtype}")
     
     try:
         engine_args = AsyncEngineArgs(
             model=settings.model_name,
             revision=settings.model_revision,
+            dtype=settings.model_dtype,
             tensor_parallel_size=settings.tensor_parallel_size,
             gpu_memory_utilization=settings.gpu_memory_utilization,
             max_model_len=settings.max_model_len,
@@ -64,6 +67,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize vLLM engine: {e}")
         raise
+    
     
     yield
     
