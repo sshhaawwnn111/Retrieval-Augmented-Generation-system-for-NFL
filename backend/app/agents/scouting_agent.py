@@ -1,5 +1,5 @@
 import requests
-from agents.prompts.scouting_prompt import SCOUTING_PROMPT
+from app.agents.prompts.scouting_prompt import SCOUTING_PROMPT
 
 class ScoutingAgent:
     def __init__(self, llm, database_connection):

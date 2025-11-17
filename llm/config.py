@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # vLLM Model Configuration
     model_name: str = "meta-llama/Llama-2-7b-chat-hf"
     model_revision: str = "main"
+    model_dtype: str = "half"
     tensor_parallel_size: int = 1
     gpu_memory_utilization: float = 0.9
     max_model_len: int = 4096

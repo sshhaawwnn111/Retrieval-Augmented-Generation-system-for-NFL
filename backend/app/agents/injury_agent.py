@@ -1,4 +1,4 @@
-from agents.prompts.injury_prompt import INJURY_PROMPT
+from app.agents.prompts.injury_prompt import INJURY_PROMPT
 
 
 class InjuryAgent:

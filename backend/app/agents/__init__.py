@@ -1,11 +1,11 @@
-from agents.injury_agent import InjuryAgent
+from app.agents.injury_agent import InjuryAgent
 # from .contract_agent import ContractAgent
 # from .scouting_agent import ScoutingAgent
 # from .performance_agent import PerformanceAgent
 # from .movement_agent import MovementAgent
 # from .text2sql_agent import TextToSQLAgent
 # from .verifier_agent import VerifierAgent
-from agents.coordinator import CoordinatorAgent
+from app.agents.coordinator import CoordinatorAgent
 
 def initialize_agents(llm, databases):
     """Initialize all agents with their dependencies"""

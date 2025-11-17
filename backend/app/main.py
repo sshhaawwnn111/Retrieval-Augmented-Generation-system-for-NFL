@@ -9,8 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.core.secrets import get_database_credentials
 from app.api import llm_routes, agent_routes, s3_routes
-from agents.db_connection import DatabaseConnection
+from app.agents.db_connection import DatabaseConnection
 
 # Configure logging
 logging.basicConfig(
@@ -30,14 +31,38 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"AWS Region: {settings.AWS_REGION}")
     
+    # Get database credentials - start with settings defaults
+    db_password = settings.DATABASE_PASSWORD
+    db_user = settings.DATABASE_USER
+    db_host = settings.DATABASE_HOST
+    db_reader_host = settings.DATABASE_READER_HOST
+    
+    if settings.USE_SECRETS_MANAGER:
+        try:
+            logger.info(f"Retrieving database credentials from Secrets Manager: {settings.DATABASE_SECRET_NAME}")
+            credentials = get_database_credentials(
+                secret_name=settings.DATABASE_SECRET_NAME,
+                region=settings.AWS_REGION
+            )
+            
+            # RDS-managed secrets only contain username and password
+            db_user = credentials.get('username', db_user)
+            db_password = credentials.get('password', db_password)
+            
+            logger.info(f"Successfully retrieved database credentials for user: {db_user}")
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve secrets from Secrets Manager: {e}")
+            logger.warning("Falling back to environment variables")
+
     # Initialize database connection pools
     try:
         DatabaseConnection.initialize_pools(
             dbname=settings.DATABASE_NAME,
-            user=settings.DATABASE_USER,
-            password=settings.DATABASE_PASSWORD,
-            writer_host=settings.DATABASE_HOST,  # Cluster/Writer endpoint
-            reader_host=settings.DATABASE_READER_HOST,  # Reader endpoint
+            user=db_user,
+            password=db_password,
+            writer_host=db_host,  # Cluster/Writer endpoint
+            reader_host=db_reader_host,  # Reader endpoint
             port=settings.DATABASE_PORT,
             min_conn=2,
             max_conn=10
@@ -96,20 +121,6 @@ async def health_check():
         "environment": settings.ENVIRONMENT,
         "debug": settings.DEBUG,
         
-        # AWS Configuration
-        "aws": {
-            "region": settings.AWS_REGION,
-            "access_key_configured": bool(settings.AWS_ACCESS_KEY_ID),
-            "secret_key_configured": bool(settings.AWS_SECRET_ACCESS_KEY),
-        },
-        
-        # SageMaker
-        "sagemaker": {
-            "endpoint_name": settings.SAGEMAKER_ENDPOINT_NAME or "not_configured",
-            "timeout": settings.SAGEMAKER_TIMEOUT,
-            "max_retries": settings.SAGEMAKER_MAX_RETRIES,
-        },
-        
         # vLLM Service
         "vllm": {
             "service_url": settings.VLLM_SERVICE_URL,
@@ -131,35 +142,13 @@ async def health_check():
             "host": settings.DATABASE_HOST,
             "port": settings.DATABASE_PORT,
             "name": settings.DATABASE_NAME,
-            "user": settings.DATABASE_USER,
-            "password_configured": bool(settings.DATABASE_PASSWORD),
             "ssl_enabled": settings.DATABASE_SSL,
             "reader_host": settings.DATABASE_READER_HOST or "not_configured",
-        },
-        
-        # S3
-        "s3": {
-            "region": settings.S3_REGION,
-            "bucket_name": settings.S3_BUCKET_NAME,
-            "reports_prefix": settings.S3_REPORTS_PREFIX,
-            "raw_data_prefix": settings.S3_RAW_DATA_PREFIX,
-            "embeddings_prefix": settings.S3_EMBEDDINGS_PREFIX,
         },
         
         # Reranker
         "reranker": {
             "service_url": settings.RERANKER_SERVICE_URL or "not_configured",
-        },
-        
-        # CloudWatch
-        "cloudwatch": {
-            "log_group": settings.CLOUDWATCH_LOG_GROUP,
-            "log_stream": settings.CLOUDWATCH_LOG_STREAM,
-        },
-        
-        # Vector Search
-        "vector_search": {
-            "embedding_dimension": settings.EMBEDDING_DIMENSION,
         },
         
         # CORS
