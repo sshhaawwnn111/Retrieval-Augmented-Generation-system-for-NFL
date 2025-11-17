@@ -2,7 +2,11 @@ import os
 import logging
 from typing import List
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from db_connection import DatabaseConnection
+from contextlib import asynccontextmanager
+from core.config import settings
+from core.secrets import get_database_credentials
 import psycopg2
 
 from schemas import (
@@ -42,28 +46,114 @@ def get_db_connection():
     }
     return psycopg2.connect(**params)
 
+def get_db(use_writer: bool = False):
+    """
+    Dependency to get database connection
+    
+    Args:
+        use_writer: If True, returns writer connection for write operations
+    """
+    db = DatabaseConnection(use_writer=use_writer)
+    try:
+        yield db
+    finally:
+        db.close()
 
-@app.on_event("startup")
-def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for startup and shutdown events
+    """
+    # Startup
+    logger.info("Starting RavensRotoWire Backend...")
+    logger.info(f"Environment: {settings.ENVIRONMENT}")
+    logger.info(f"AWS Region: {settings.AWS_REGION}")
+    
+    # Get database credentials - start with settings defaults
+    db_password = settings.DATABASE_PASSWORD
+    db_user = settings.DATABASE_USER
+    db_host = settings.DATABASE_HOST
+    db_reader_host = settings.DATABASE_READER_HOST
+    
+    if settings.USE_SECRETS_MANAGER:
+        try:
+            logger.info(f"Retrieving database credentials from Secrets Manager: {settings.DATABASE_SECRET_NAME}")
+            credentials = get_database_credentials(
+                secret_name=settings.DATABASE_SECRET_NAME,
+                region=settings.AWS_REGION
+            )
+            
+            # RDS-managed secrets only contain username and password
+            db_user = credentials.get('username', db_user)
+            db_password = credentials.get('password', db_password)
+            
+            logger.info(f"Successfully retrieved database credentials for user: {db_user}")
+            
+        except Exception as e:
+            logger.error(f"Failed to retrieve secrets from Secrets Manager: {e}")
+            logger.warning("Falling back to environment variables")
+    # Initialize database connection pools
+    try:
+        DatabaseConnection.initialize_pools(
+            dbname=settings.DATABASE_NAME,
+            user=db_user,
+            password=db_password,
+            writer_host=db_host,  # Cluster/Writer endpoint
+            reader_host=db_reader_host,  # Reader endpoint
+            port=settings.DATABASE_PORT,
+            min_conn=2,
+            max_conn=10
+        )
+        logger.info("Database connection pools initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database pools: {e}")
+        raise
+    
     logger.info("Starting retriever_reranker service")
     try:
-        app.state.db = get_db_connection()
-        app.state.retriever = PGVectorRetriever(app.state.db)
+        app.state.retriever = PGVectorRetriever()
         app.state.reranker = ModelReranker(os.environ.get("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L6-v2"))
         logger.info("Services initialized")
     except Exception as e:
         logger.exception("Failed to initialize service: %s", e)
         raise
-
-
-@app.on_event("shutdown")
-def shutdown_event():
+    yield
+    
     logger.info("Shutting down retriever_reranker service")
     try:
         if hasattr(app.state, "db") and app.state.db:
             app.state.db.close()
     except Exception:
         logger.exception("Error closing DB connection")
+        
+    # Shutdown
+    logger.info("Shutting down RavensRotoWire Backend...")
+    try:
+        DatabaseConnection.close_all_connections()
+        logger.info("Database connection pools closed successfully")
+    except Exception as e:
+        logger.error(f"Error closing database pools: {e}")
+
+# @app.on_event("startup")
+# def startup_event():
+#     logger.info("Starting retriever_reranker service")
+#     try:
+#         app.state.retriever = PGVectorRetriever()
+#         app.state.reranker = ModelReranker(os.environ.get("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L6-v2"))
+#         logger.info("Services initialized")
+#     except Exception as e:
+#         logger.exception("Failed to initialize service: %s", e)
+#         raise
+
+
+# @app.on_event("shutdown")
+# def shutdown_event():
+#     logger.info("Shutting down retriever_reranker service")
+#     try:
+#         if hasattr(app.state, "db") and app.state.db:
+#             app.state.db.close()
+#     except Exception:
+#         logger.exception("Error closing DB connection")
 
 
 @app.get("/health")
@@ -71,9 +161,10 @@ def health():
     return {"status": "healthy", "service": "retriever_reranker"}
 
 @app.post("/retrieve", response_model=List[Document])
-def retrieve(req: RetrieveAndRerankRequest):
+def retrieve(req: RetrieveAndRerankRequest, db: DatabaseConnection = Depends(get_db) ):
     try:
         candidates = app.state.retriever.search(
+            db,
             req.query,
             k=req.k,
             sql_override=req.sql
@@ -148,10 +239,10 @@ def rerank(query_and_docs: dict):
 
 
 @app.post("/retrieve_and_rerank", response_model=RetrieveAndRerankResponse)
-def retrieve_and_rerank(req: RetrieveAndRerankRequest):
+def retrieve_and_rerank(req: RetrieveAndRerankRequest, db: DatabaseConnection = Depends(get_db)):
     try:
         # 1. retrieval
-        candidates = app.state.retriever.search(req.query, k=req.k, sql_override=req.sql)
+        candidates = app.state.retriever.search(db, req.query, k=req.k, sql_override=req.sql)
 
         docs_for_rerank: List[Document] = []
         for d in candidates:
@@ -194,6 +285,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=8003,
         reload=False
     )

@@ -4,8 +4,7 @@ from sentence_transformers import SentenceTransformer
 
 
 class PGVectorRetriever:
-    def __init__(self, db_conn, table: str = "nfl_news", embed_col: str = "embedding"):
-        self.conn = db_conn
+    def __init__(self, table: str = "nfl_news", embed_col: str = "embedding"):
         self.table = table
         self.embed_col = embed_col
         self.model = SentenceTransformer(os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2"))
@@ -14,7 +13,7 @@ class PGVectorRetriever:
         vec = self.model.encode(text, normalize_embeddings=True).tolist()
         return f"[{','.join(str(x) for x in vec)}]"
 
-    def search(self, query: str, k: int = 5, sql_override: Optional[str] = None) -> List[Dict]:
+    def search(self, conn, query: str, k: int = 5, sql_override: Optional[str] = None) -> List[Dict]:
 
         qvec = self.embed(query)
 
@@ -24,7 +23,7 @@ class PGVectorRetriever:
 
         params = (qvec, qvec, fetch_k, k)
 
-        with self.conn.cursor() as cur:
+        with conn.cursor() as cur:
             cur.execute(sql_to_use, params)
             rows = cur.fetchall()
 
