@@ -79,14 +79,13 @@ class VLLMClient:
         Returns:
             Generated text string
         """
-        # Combine system and user prompts if provided
-        full_prompt = prompt
         if system_prompt:
-            # Format as a conversation if system prompt is provided
-            full_prompt = f"System: {system_prompt}\n\nUser: {prompt}\n\nAssistant:"
+            formatted_prompt = f"{system_prompt}\n\n{prompt}"
+        else:
+            formatted_prompt = prompt
         
         response = await self.invoke_endpoint(
-            prompt=full_prompt,
+            prompt=formatted_prompt,
             max_tokens=max_tokens,
             temperature=temperature,
             top_p=top_p,
@@ -94,7 +93,7 @@ class VLLMClient:
             **kwargs
         )
         
-        return response["generated_text"]
+        return response["text"]
     
     async def invoke_endpoint(
         self,
@@ -128,7 +127,7 @@ class VLLMClient:
         }
         
         if stop_sequences:
-            payload["stop_sequences"] = stop_sequences
+            payload["stop"] = stop_sequences
         
         # Add any additional parameters
         payload.update(kwargs)
@@ -168,15 +167,16 @@ class VLLMClient:
         
         Expected response format from your service:
         {
-            "generated_text": "...",
+            "text": "...",
             "prompt": "...",
             "model": "...",
+            "finish_reason": "...",
             "usage": {...}
         }
         """
-        if "generated_text" in response_body:
+        if "text" in response_body:
             return {
-                "generated_text": response_body["generated_text"],
+                "text": response_body["text"],
                 "model": response_body.get("model", "unknown"),
                 "usage": response_body.get("usage", {}),
                 "prompt": response_body.get("prompt", ""),

@@ -1,13 +1,17 @@
 import os
 from typing import List, Dict, Optional
 from sentence_transformers import SentenceTransformer
-
+import torch
 
 class PGVectorRetriever:
     def __init__(self, table: str = "nfl_news", embed_col: str = "embedding"):
         self.table = table
         self.embed_col = embed_col
-        self.model = SentenceTransformer(os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2"))
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.model = SentenceTransformer(
+            os.environ.get("EMBED_MODEL", "all-MiniLM-L6-v2"),
+            device=device
+        )
 
     def embed(self, text: str) -> str:
         vec = self.model.encode(text, normalize_embeddings=True).tolist()

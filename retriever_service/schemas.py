@@ -9,12 +9,12 @@ class RetrieveRequest(BaseModel):
 
 class RetrievedDocument(BaseModel):
     doc_id: int
-    row_number: int
-    player_name: Optional[str]
-    headline: Optional[str]
-    date: Optional[str]
-    injury_status: Optional[str]
-    injury_detail: Optional[str]
+    row_number: Optional[int] = None
+    player_name: Optional[str] = None
+    headline: Optional[str] = None
+    date: Optional[str] = None
+    injury_status: Optional[str] = None
+    injury_detail: Optional[str] = None
     citation: str
     context_text: str
 

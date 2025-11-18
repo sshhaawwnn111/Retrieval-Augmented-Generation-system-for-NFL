@@ -61,3 +61,37 @@ class ReportGenerationResponse(BaseModel):
     report: str = Field(..., description="Generated report")
     report_type: str = Field(..., description="Type of report")
     s3_url: Optional[str] = Field(None, description="S3 URL if saved")
+
+
+class InjuryAnalysisRequest(BaseModel):
+    player_name: str = Field(..., description="Player name to analyze")
+    week_number: int = Field(..., description="NFL week number", ge=1, le=18)
+
+
+class InjuryReportRequest(BaseModel):
+    players: List[str] = Field(..., description="List of player names")
+    week_number: int = Field(..., description="NFL week number", ge=1, le=18)
+
+
+class WeeklyReportRequest(BaseModel):
+    week_number: int = Field(..., description="NFL week number", ge=1, le=18)
+
+
+class InjuryAnalysisResponse(BaseModel):
+    player: str = Field(..., description="Player name")
+    week: int = Field(..., description="Week number")
+    analysis: str = Field(..., description="Injury analysis (markdown)")
+    status: str = Field(..., description="Status of request")
+
+
+class InjuryReportResponse(BaseModel):
+    week: int = Field(..., description="Week number")
+    players: List[str] = Field(..., description="Players analyzed")
+    report: str = Field(..., description="Combined injury report")
+    status: str = Field(..., description="Status of request")
+
+
+class WeeklyReportResponse(BaseModel):
+    week: int = Field(..., description="Week number")
+    report: str = Field(..., description="Full team injury report")
+    status: str = Field(..., description="Status of request")

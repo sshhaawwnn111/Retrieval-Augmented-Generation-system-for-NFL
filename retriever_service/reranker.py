@@ -2,6 +2,7 @@ import logging
 from typing import List
 from sentence_transformers.cross_encoder import CrossEncoder
 from schemas import Document
+import torch
 
 logger = logging.getLogger(__name__)
 
@@ -9,7 +10,9 @@ logger = logging.getLogger(__name__)
 class ModelReranker:
     def __init__(self, model_name: str = 'cross-encoder/ms-marco-MiniLM-L6-v2'):
         try:
-            self.model = CrossEncoder(model_name, max_length=512)
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            logger.info(f"Using device: {device}")
+            self.model = CrossEncoder(model_name, max_length=512, device=device)
             logger.info(f"Loaded reranker model: {model_name}")
         except Exception as e:
             logger.error(f"Failed to load reranker model {model_name}: {e}")

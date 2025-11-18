@@ -241,5 +241,6 @@ if __name__ == "__main__":
         host=settings.service_host,
         port=settings.service_port,
         log_level=settings.log_level.lower(),
+        workers=1,
         reload=False
     )

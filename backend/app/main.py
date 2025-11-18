@@ -20,6 +20,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Filter out security scan noise
+class SecurityScanFilter(logging.Filter):
+    """Filter out known security scanning patterns"""
+    SCAN_PATTERNS = [
+        'phpunit',
+        'eval-stdin.php',
+        'vendor/phpunit',
+        'config-create',
+        '/containers/json',
+        'invokefunction',
+        'allow_url_include',
+    ]
+    
+    def filter(self, record):
+        # Only filter INFO level messages from uvicorn.access
+        if record.name == "uvicorn.access" and record.levelno == logging.INFO:
+            message = record.getMessage()
+            # Filter out security scan attempts
+            return not any(pattern in message for pattern in self.SCAN_PATTERNS)
+        return True
+
+access_logger = logging.getLogger("uvicorn.access")
+access_logger.addFilter(SecurityScanFilter())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

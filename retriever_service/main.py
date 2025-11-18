@@ -1,5 +1,6 @@
 import os
 import logging
+import torch
 from typing import List
 
 from fastapi import FastAPI, HTTPException, Depends
@@ -46,6 +47,12 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"AWS Region: {settings.AWS_REGION}")
     
+    # Log GPU availability
+    logger.info(f"CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        logger.info(f"CUDA device: {torch.cuda.get_device_name(0)}")
+        logger.info(f"CUDA device count: {torch.cuda.device_count()}")
+
     # Get database credentials - start with settings defaults
     db_password = settings.DATABASE_PASSWORD
     db_user = settings.DATABASE_USER
@@ -215,26 +222,37 @@ def rerank(query_and_docs: dict):
 @app.post("/retrieve_and_rerank", response_model=RetrieveAndRerankResponse)
 def retrieve_and_rerank(req: RetrieveAndRerankRequest, db: DatabaseConnection = Depends(get_db)):
     try:
+        logger.info(f"Retrieve and rerank request - query: '{req.query[:100]}...', k={req.k}, top_n={req.top_n}")
         # 1. retrieval
+        logger.info(f"Starting retrieval with k={req.k}")
         candidates = app.state.retriever.search(
             db, 
             req.query, 
             k=req.k,
         )
+        logger.info(f"Retrieved {len(candidates)} candidates from database")
 
         docs_for_rerank: List[Document] = []
         for d in candidates:
             meta = {
                 "doc_id": d.get("doc_id"),
+                "row_number": d.get("row_number"),
+                "player_name": d.get("player_name"),
                 "headline": d.get("headline"),
                 "date": d.get("date"),
                 "citation": d.get("citation"),
+                "injury_status": d.get("injury_status"),
+                "injury_detail": d.get("injury_detail"),
             }
             docs_for_rerank.append(Document(content=d.get("context_text", ""), metadata=meta))
+
+        logger.info(f"Prepared {len(docs_for_rerank)} documents for reranking")
+
 
         # 2. reranking
         top_n = req.top_n if req.top_n is not None else req.k
         reranked = app.state.reranker.rerank_documents(req.query, docs_for_rerank, top_n)
+        logger.info(f"Reranking complete, returning {len(reranked)} documents")
 
         # 3. Marshal response
         response_docs: List[RetrievedDocument] = []
@@ -247,11 +265,14 @@ def retrieve_and_rerank(req: RetrieveAndRerankRequest, db: DatabaseConnection = 
                     player_name=meta.get("player_name"),
                     headline=meta.get("headline"),
                     date=meta.get("date"),
+                    injury_status=meta.get("injury_status"),
+                    injury_detail=meta.get("injury_detail"),
                     citation=meta.get("citation") or "",
                     context_text=doc.content,
                 )
             )
 
+        logger.info(f"Successfully marshaled {len(response_docs)} response documents")
         return RetrieveAndRerankResponse(documents=response_docs)
 
     except Exception as e:
