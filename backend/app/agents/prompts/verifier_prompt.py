@@ -1,5 +1,3 @@
-# llm/prompts/verifier_prompt.py
-from langchain_core.prompts import PromptTemplate
 
 verifier_prompt_str = """
 You are an NFL fact-checking and verification expert. Your role is to validate AI-generated responses for accuracy, consistency, and reliability.
@@ -67,8 +65,3 @@ VERIFICATION DATA: {verification_data}
 AI RESPONSE: {ai_response}
 ORIGINAL QUERY: {original_query}
 """
-
-verifier_prompt_template = PromptTemplate(
-input_variables=["original_query", "ai_response", "verification_data"],
-template=verifier_prompt_str
-)

@@ -42,9 +42,11 @@ class PGVectorRetriever:
             headline = r[2] if len(r) > 2 else None
             date_val = r[3] if len(r) > 3 else None
             date = date_val.strftime("%Y-%m-%d %H:%M:%S") if date_val is not None else None
-            status = r[4] if len(r) > 4 else ""
-            detail = r[5] if len(r) > 5 else ""
-            row_num = r[7] if len(r) > 7 else idx + 1
+            notes = r[4] if len(r) > 4 else ""
+            analysis = r[5] if len(r) > 5 else ""
+            status = r[6] if len(r) > 6 else ""
+            detail = r[7] if len(r) > 7 else ""
+            row_num = r[9] if len(r) > 9 else idx + 1
 
             citation = f"[ref_{idx+1} doc_{doc_id} row_{row_num}]"
 
@@ -59,7 +61,8 @@ class PGVectorRetriever:
                 "citation": citation,
                 "context_text": (
                     f"{citation} {player or ''}: {headline or ''} on {date or ''} "
-                    f"(Status: {status}, Detail: {detail})"
+                    f"(Status: {status}, Detail: {detail}) "
+                    f"\n\nNotes: {notes or ''}\nAnalysis: {analysis or ''}"
                 )
             })
 
@@ -70,7 +73,7 @@ class PGVectorRetriever:
         return f"""
             WITH ranked AS (
                 SELECT 
-                    id, player_name, headline, date, 
+                    id, player_name, headline, date, notes, analysis
                     injury_status, injury_detail,
                     {self.embed_col} <=> %s::vector AS distance
                 FROM {self.table}
