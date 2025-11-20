@@ -129,7 +129,7 @@ class InjuryAgent:
             logger.error(f"Error analyzing {player}: {e}")
             return f"{player}: Data unavailable ({str(e)})"
         
-    async def generate_player_report(self, players: list[str], week_number: int) -> str:
+    async def generate_team_injury_report(self, players: list[str], week_number: int) -> str:
         """
         Generate injury report for a list of players.
         PROCESSES ALL PLAYERS IN PARALLEL for maximum throughput.

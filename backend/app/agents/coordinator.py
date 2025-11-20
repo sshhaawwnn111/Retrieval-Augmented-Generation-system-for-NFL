@@ -51,10 +51,10 @@ class CoordinatorAgent:
         a unified weekly report for front-office use.
         """
 
-        injuries = await self.injury_agent.analyze_team_injuries(self.starting_players)
-        waivers = await self.waiver_agent.check_recent_waivers(self.starting_players)
-        news_items = await self.news_agent.collect_off_field_news(self.starting_players)
-        performance = await self.performance_agent.evaluate_weekly_performance(self.starting_players)
+        injuries = await self.injury_agent.generate_team_injury_report(self.starting_players)
+        waivers = await self.waiver_agent.generate_waiver_report(self.starting_players)
+        news_items = await self.news_agent.generate_news_report(self.starting_players)
+        performance = await self.performance_agent.generate_performance_report(self.starting_players)
 
         report_prompt = f"""
         Produce a polished, executive-ready NFL team operations report for Week {week_number}.
@@ -74,8 +74,12 @@ class CoordinatorAgent:
 
         Final output should be concise, professional, and ready for a GM or coaching staff briefing.
         """
-
-        final_report = await self.llm.ainvoke(report_prompt)
+        final_report = await self.llm.generate_text(
+            prompt=report_prompt,
+            system_prompt="You are a professional NFL team operations analyst.",
+            temperature=0.3,
+            max_tokens=512
+        )
 
         if self.db:
             self.save_weekly_report_to_db(week_number, final_report)

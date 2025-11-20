@@ -1,6 +1,4 @@
-from langchain_core.prompts import PromptTemplate
-
-performance_prompt_str = """
+PERFORMANCE_PROMPT = """
 You are an NFL data scientist specializing in advanced analytics and performance metrics.
 
 CONTEXT DATA:
@@ -25,8 +23,3 @@ RULES:
 CONTEXT: {context}
 QUERY: {query}
 """
-
-performance_prompt_template = PromptTemplate(
-    input_variables=["query", "context"],
-    template=performance_prompt_str
-)

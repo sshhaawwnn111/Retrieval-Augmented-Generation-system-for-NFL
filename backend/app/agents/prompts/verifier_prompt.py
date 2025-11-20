@@ -1,5 +1,5 @@
 
-verifier_prompt_str = """
+VERIFIER_PROMPT = """
 You are an NFL fact-checking and verification expert. Your role is to validate AI-generated responses for accuracy, consistency, and reliability.
 
 ORIGINAL QUERY:
