@@ -102,7 +102,7 @@ class InjuryAgent:
         result = await self.llm.generate_text(
             prompt=summarization_prompt,
             system_prompt="You are a professional NFL injury analyst.",
-            temperature=0.7,
+            temperature=0.3,
             max_tokens=512
         )
         return f"{player_name}: {result.content.strip()}"
