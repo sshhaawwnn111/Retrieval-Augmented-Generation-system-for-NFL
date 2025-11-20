@@ -8,11 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 class ModelReranker:
-    def __init__(self, model_name: str = 'cross-encoder/ms-marco-MiniLM-L6-v2'):
+    def __init__(self, model_name: str = 'zeroentropy/zerank-1-small'):
         try:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             logger.info(f"Using device: {device}")
-            self.model = CrossEncoder(model_name, max_length=512, device=device)
+            self.model = CrossEncoder(model_name, max_length=512, device=device, trust_remote_code=True)
             logger.info(f"Loaded reranker model: {model_name}")
         except Exception as e:
             logger.error(f"Failed to load reranker model {model_name}: {e}")
