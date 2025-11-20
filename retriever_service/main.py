@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI):
     logger.info("Starting retriever_reranker service")
     try:
         app.state.retriever = PGVectorRetriever()
-        app.state.reranker = ModelReranker(os.environ.get("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L6-v2"))
+        app.state.reranker = ModelReranker(os.environ.get("RERANK_MODEL", "zeroentropy/zerank-1-small"))
         logger.info("Services initialized")
     except Exception as e:
         logger.exception("Failed to initialize service: %s", e)
