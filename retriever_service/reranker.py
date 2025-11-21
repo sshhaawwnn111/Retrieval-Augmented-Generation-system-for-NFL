@@ -12,7 +12,7 @@ class ModelReranker:
         try:
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
             logger.info(f"Using device: {device}")
-            self.model = CrossEncoder(model_name, max_length=512, device=device, trust_remote_code=True)
+            self.model = CrossEncoder(model_name, max_length=512, device=device, trust_remote_code=True, automodel_args={"torch_dtype": torch.float16})
             logger.info(f"Loaded reranker model: {model_name}")
         except Exception as e:
             logger.error(f"Failed to load reranker model {model_name}: {e}")
@@ -25,7 +25,7 @@ class ModelReranker:
         model_inputs = [[query, doc.content] for doc in documents]
 
         logger.info(f"Scoring {len(model_inputs)} document pairs...")
-        scores = self.model.predict(model_inputs, show_progress_bar=False)
+        scores = self.model.predict(model_inputs, batch_size=4, show_progress_bar=False)
 
         scored_documents = list(zip(scores, documents))
         scored_documents.sort(key=lambda x: x[0], reverse=True)
