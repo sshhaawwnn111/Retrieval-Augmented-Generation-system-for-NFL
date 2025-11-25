@@ -7,11 +7,11 @@ from db_connection import DatabaseConnection
 from contextlib import asynccontextmanager
 from core.config import settings
 from core.secrets import get_database_credentials
-import psycopg2
 
 from schemas import (
     RetrievedDocument,
     Document,
+    RetrieveRequest,
     RetrieveAndRerankRequest,
     RetrieveAndRerankResponse,
 )
@@ -22,29 +22,6 @@ from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="Retriever + Reranker Service")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-def get_db_connection():
-    database_url = os.environ.get("DATABASE_URL")
-    if database_url:
-        return psycopg2.connect(database_url)
-    params = {
-        "dbname": os.environ.get("PGDATABASE", "postgres"),
-        "user": os.environ.get("PGUSER", "postgres"),
-        "password": os.environ.get("PGPASSWORD", ""),
-        "host": os.environ.get("PGHOST", "localhost"),
-        "port": os.environ.get("PGPORT", "5432"),
-    }
-    return psycopg2.connect(**params)
 
 def get_db(use_writer: bool = False):
     """
@@ -65,7 +42,7 @@ async def lifespan(app: FastAPI):
     Lifespan context manager for startup and shutdown events
     """
     # Startup
-    logger.info("Starting RavensRotoWire Backend...")
+    logger.info("Starting RavensRotoWire retriever...")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"AWS Region: {settings.AWS_REGION}")
     
@@ -117,8 +94,11 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.exception("Failed to initialize service: %s", e)
         raise
+
+
     yield
     
+
     logger.info("Shutting down retriever_reranker service")
     try:
         if hasattr(app.state, "db") and app.state.db:
@@ -134,26 +114,21 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Error closing database pools: {e}")
 
-# @app.on_event("startup")
-# def startup_event():
-#     logger.info("Starting retriever_reranker service")
-#     try:
-#         app.state.retriever = PGVectorRetriever()
-#         app.state.reranker = ModelReranker(os.environ.get("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L6-v2"))
-#         logger.info("Services initialized")
-#     except Exception as e:
-#         logger.exception("Failed to initialize service: %s", e)
-#         raise
 
+app = FastAPI(
+    title="Retriever + Reranker Service",
+    description="Service for retrieving and reranking documents using PGVector and a reranker model",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
-# @app.on_event("shutdown")
-# def shutdown_event():
-#     logger.info("Shutting down retriever_reranker service")
-#     try:
-#         if hasattr(app.state, "db") and app.state.db:
-#             app.state.db.close()
-#     except Exception:
-#         logger.exception("Error closing DB connection")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
@@ -161,13 +136,12 @@ def health():
     return {"status": "healthy", "service": "retriever_reranker"}
 
 @app.post("/retrieve", response_model=List[Document])
-def retrieve(req: RetrieveAndRerankRequest, db: DatabaseConnection = Depends(get_db) ):
+def retrieve(req: RetrieveRequest, db: DatabaseConnection = Depends(get_db) ):
     try:
         candidates = app.state.retriever.search(
             db,
             req.query,
             k=req.k,
-            sql_override=req.sql
         )
 
         docs_for_rerank: List[Document] = []
@@ -242,7 +216,11 @@ def rerank(query_and_docs: dict):
 def retrieve_and_rerank(req: RetrieveAndRerankRequest, db: DatabaseConnection = Depends(get_db)):
     try:
         # 1. retrieval
-        candidates = app.state.retriever.search(db, req.query, k=req.k, sql_override=req.sql)
+        candidates = app.state.retriever.search(
+            db, 
+            req.query, 
+            k=req.k,
+        )
 
         docs_for_rerank: List[Document] = []
         for d in candidates:
@@ -285,6 +263,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8003,
+        port=8002,
         reload=False
     )

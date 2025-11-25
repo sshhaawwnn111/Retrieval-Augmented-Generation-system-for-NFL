@@ -13,19 +13,23 @@ class PGVectorRetriever:
         vec = self.model.encode(text, normalize_embeddings=True).tolist()
         return f"[{','.join(str(x) for x in vec)}]"
 
-    def search(self, conn, query: str, k: int = 5, sql_override: Optional[str] = None) -> List[Dict]:
-
+    def search(self, db, query: str, k: int = 20, sql_override: Optional[str] = None) -> List[Dict]:
+        """
+        Search using DatabaseConnection's execute_query method
+        
+        Args:
+            db: DatabaseConnection instance
+            query: Search query text
+            k: Number of results to return
+            sql_override: Optional SQL query override
+        """
         qvec = self.embed(query)
 
-        fetch_k = max(k * 4, 20)
+        sql_to_use = self._default_query() if not sql_override else sql_override.strip()
+        params = (qvec, k)
 
-        sql_to_use = sql_override.strip()
-
-        params = (qvec, qvec, fetch_k, k)
-
-        with conn.cursor() as cur:
-            cur.execute(sql_to_use, params)
-            rows = cur.fetchall()
+        # Use execute_query instead of raw cursor
+        rows = db.execute_query(sql_to_use, params)
 
         results: List[Dict] = []
         for idx, r in enumerate(rows):
@@ -56,3 +60,19 @@ class PGVectorRetriever:
             })
 
         return results
+    
+    def _default_query(self) -> str:
+        """Default SQL query for vector search"""
+        return f"""
+            WITH ranked AS (
+                SELECT 
+                    id, player_name, headline, date, 
+                    injury_status, injury_detail,
+                    {self.embed_col} <=> %s::vector AS distance
+                FROM {self.table}
+                ORDER BY distance
+                LIMIT %s
+            )
+            SELECT *, ROW_NUMBER() OVER (ORDER BY distance) as row_num
+            FROM ranked
+        """
