@@ -44,17 +44,19 @@ const services = [
     features: ["Weekly Summaries", "Strategic Insights", "Decision Support"],
     status: "Weekly",
     statusColor: "success",
-    hasDialog: true
+    hasDialog: true,
+    endpoint: "/api/v1/agents/injury/analyze",
+    defaultPayload: { week_number: 11 }
   },
-  {
-    icon: FileText,
-    title: "AI Scouting Reports",
-    description: "Comprehensive player analysis with predictive performance metrics and draft recommendations.",
-    features: ["Player Rankings", "Performance Predictions", "Injury Risk Assessment"],
-    status: "Live Reports",
-    statusColor: "success",
-    hasDialog: true
-  },
+  // {
+  //   icon: FileText,
+  //   title: "AI Scouting Reports",
+  //   description: "Comprehensive player analysis with predictive performance metrics and draft recommendations.",
+  //   features: ["Player Rankings", "Performance Predictions", "Injury Risk Assessment"],
+  //   status: "Live Reports",
+  //   statusColor: "success",
+  //   hasDialog: true
+  // },
   {
     icon: Activity,
     title: "Injury Analytics",
@@ -62,7 +64,9 @@ const services = [
     features: ["Risk Modeling", "Recovery Timelines", "Load Management"],
     status: "Daily Updates",
     statusColor: "accent",
-    hasDialog: true
+    hasDialog: true,
+    endpoint: "/api/v1/agents/injury/analyze",
+    defaultPayload: { week_number: 11 }
   },
   {
     icon: DollarSign,
@@ -71,7 +75,9 @@ const services = [
     features: ["Market Value", "Cap Impact", "Trade Analysis"],
     status: "Real-time",
     statusColor: "success",
-    hasDialog: true
+    hasDialog: true,
+    endpoint: "/api/v1/agents/injury/analyze",
+    defaultPayload: { week_number: 11 }
   },
   {
     icon: TrendingUp,
@@ -80,43 +86,45 @@ const services = [
     features: ["Trend Analysis", "Season Projections", "Comparative Analytics"],
     status: "Live Data",
     statusColor: "success",
-    hasDialog: true
+    hasDialog: true,
+    endpoint: "/api/v1/agents/injury/analyze",
+    defaultPayload: { week_number: 11 }
   },
-  {
-    icon: Shield,
-    title: "Draft Intelligence",
-    description: "Comprehensive draft analysis with player potential and team fit recommendations.",
-    features: ["Draft Rankings", "Team Fit Scores", "Value Projections"],
-    status: "Draft Season",
-    statusColor: "accent",
-    hasDialog: true
-  },
-  {
-    icon: Target,
-    title: "Game Strategy",
-    description: "AI-powered game planning with opponent analysis and tactical recommendations.",
-    features: ["Opponent Analysis", "Play Calling", "Strategic Insights"],
-    status: "Game Week",
-    statusColor: "success",
-    hasDialog: true
-  },
-  {
-    icon: BarChart3,
-    title: "Advanced Metrics",
-    description: "Custom analytics dashboard with proprietary metrics and visualization tools.",
-    features: ["Custom Metrics", "Data Visualization", "Export Tools"],
-    status: "Always On",
-    statusColor: "accent",
-    hasDialog: true
-  }
+  // {
+  //   icon: Shield,
+  //   title: "Draft Intelligence",
+  //   description: "Comprehensive draft analysis with player potential and team fit recommendations.",
+  //   features: ["Draft Rankings", "Team Fit Scores", "Value Projections"],
+  //   status: "Draft Season",
+  //   statusColor: "accent",
+  //   hasDialog: true
+  // },
+  // {
+  //   icon: Target,
+  //   title: "Game Strategy",
+  //   description: "AI-powered game planning with opponent analysis and tactical recommendations.",
+  //   features: ["Opponent Analysis", "Play Calling", "Strategic Insights"],
+  //   status: "Game Week",
+  //   statusColor: "success",
+  //   hasDialog: true
+  // },
+  // {
+  //   icon: BarChart3,
+  //   title: "Advanced Metrics",
+  //   description: "Custom analytics dashboard with proprietary metrics and visualization tools.",
+  //   features: ["Custom Metrics", "Data Visualization", "Export Tools"],
+  //   status: "Always On",
+  //   statusColor: "accent",
+  //   hasDialog: true
+  // }
 ];
 
 const ServicesGrid = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState("");
-
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  
   const handleTeamClick = (teamName: string) => {
     if (teamName === "Baltimore Ravens") {
       setSelectedTeam(teamName);
@@ -131,6 +139,46 @@ const ServicesGrid = () => {
       }, 3000);
     }
   };
+  const handleServiceClick = async (service) => {
+      if (!selectedTeam) return;
+
+      try {
+        const url = `https://api.ravens-rotowire.com${service.endpoint}`;
+
+        // Build payload by combining:
+        // - service.defaultPayload
+        // - team-specific fields
+          
+        let payload = {
+            player_name: "Lamar Jackson",
+            week_number: 11,
+          };
+        // const payload = {
+        //   team_name: selectedTeam.name,
+        //   team_id: selectedTeam.id,        // if you have it
+        //   ...service.defaultPayload,       // service-specific fields
+        // };
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        console.log("RESULT:", data);
+
+        // show the report in a new dialog
+        // setDialogData(data);
+        console.log("Service Result:", data);
+
+        setIsDialogOpen(true);
+
+      } catch (err) {
+        console.error(err);
+      }
+    };
 
   return (
     <section id="services" className="py-20 bg-muted/30">
@@ -140,53 +188,44 @@ const ServicesGrid = () => {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Comprehensive AI-powered tools designed specifically for NFL front office operations and decision-making.
           </p>
+          <h2 className="text-3xl md:text-6xl font-bold mb-4 mt-24">Select a Team</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {services.map((service, index) => {
-            const IconComponent = service.icon;
-            return (
-              <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-border">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                      <IconComponent className="w-5 h-5 text-primary-foreground" />
-                    </div>
-                    <Badge 
-                      variant="secondary" 
-                      className={`text-xs ${
-                        service.statusColor === 'success' ? 'bg-success/10 text-success' :
-                        service.statusColor === 'accent' ? 'bg-accent/10 text-accent' :
-                        'bg-warning/10 text-warning'
-                      }`}
-                    >
-                      {service.status}
-                    </Badge>
+            {teams.map((team, index) => (
+              
+                <button
+                  key={index}
+                  className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-muted/50 transition-colors group"
+                  onClick={() => {
+                    setSelectedTeam(team)
+                    setIsDialogOpen(true)}}
+                >
+                  {/* <div className="w-24 h-24 rounded-full overflow-hidden bg-background border-2 border-border group-hover:border-accent transition-colors flex items-center justify-center p-2">
+                    <img 
+                      src={team.logo} 
+                      alt={team.name} 
+                      className="w-full h-full object-contain"
+                    />
                   </div>
-                  <CardTitle className="text-lg">{service.title}</CardTitle>
-                  <CardDescription className="text-sm">{service.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-2 mb-4">
-                    {service.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-center text-sm text-muted-foreground">
-                        <div className="w-1.5 h-1.5 rounded-full bg-accent mr-2"></div>
-                        {feature}
-                      </div>
-                    ))}
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full group-hover:border-accent group-hover:text-accent transition-colors"
-                    onClick={() => service.hasDialog && setIsDialogOpen(true)}
-                  >
-                    View Reports
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  <span className="text-lg font-medium text-center">{team.name}</span> */}
+                <Card
+                  key={index}
+                  className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-border h-64 w-60"
+                >
+                  <CardContent className="pt-0 flex flex-col items-center justify-center text-center gap-3 h-full">
+                    <img
+                      src={team.logo}
+                      alt={team.name}
+                      className="h-32 object-contain"
+                    />
+
+                    <CardTitle className="text-lg">{team.name}</CardTitle>
+                  </CardContent>
+                </Card>
+
+                </button>
+              ))}
         </div>
       </div>
 
@@ -196,23 +235,51 @@ const ServicesGrid = () => {
             <DialogTitle className="text-2xl">Executive Summary Reports</DialogTitle>
           </DialogHeader>
           <ScrollArea className="h-[500px] pr-4">
-            <div className="grid grid-cols-3 gap-6 p-4">
-              {teams.map((team, index) => (
-                <button
-                  key={index}
-                  className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-muted/50 transition-colors group"
-                  onClick={() => handleTeamClick(team.name)}
-                >
-                  <div className="w-24 h-24 rounded-full overflow-hidden bg-background border-2 border-border group-hover:border-accent transition-colors flex items-center justify-center p-2">
-                    <img 
-                      src={team.logo} 
-                      alt={team.name} 
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <span className="text-sm font-medium text-center">{team.name}</span>
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-6 p-4">
+              {services.map((service, index) => {
+                const IconComponent = service.icon;
+                return (
+                  <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-border">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                          <IconComponent className="w-5 h-5 text-primary-foreground" />
+                        </div>
+                        {/* <Badge 
+                          variant="secondary" 
+                          className={`text-xs ${
+                            service.statusColor === 'success' ? 'bg-success/10 text-success' :
+                            service.statusColor === 'accent' ? 'bg-accent/10 text-accent' :
+                            'bg-warning/10 text-warning'
+                          }`}
+                        >
+                          {service.status}
+                        </Badge> */}
+                      </div>
+                      <CardTitle className="text-lg">{service.title}</CardTitle>
+                      <CardDescription className="text-sm">{service.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2 mb-4">
+                        {service.features.map((feature, idx) => (
+                          <div key={idx} className="flex items-center text-sm text-muted-foreground">
+                            <div className="w-1.5 h-1.5 rounded-full bg-accent mr-2"></div>
+                            {feature}
+                          </div>
+                        ))}
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full group-hover:border-accent group-hover:text-accent transition-colors"
+                        onClick={() => handleServiceClick(service)}
+                      >
+                        View Reports
+                      </Button>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </ScrollArea>
         </DialogContent>

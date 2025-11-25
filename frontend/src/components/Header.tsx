@@ -17,25 +17,25 @@ const Header = () => {
         </div>
 
         <nav className="hidden md:flex items-center space-x-6">
-          <a href="#home" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          {/* <a href="#home" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Home
-          </a>
-          <a href="#dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          </a> */}
+          {/* <a href="#dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Dashboard
           </a>
           <a href="#reports" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             All Reports
-          </a>
+          </a> */}
         </nav>
 
-        <div className="flex items-center space-x-4">
+        {/* <div className="flex items-center space-x-4">
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
             Sign In
           </Button>
           <Button size="sm" className="bg-gradient-to-r from-primary to-primary-muted hover:opacity-90">
             Sign Up
           </Button>
-        </div>
+        </div> */}
       </div>
     </header>
   );
