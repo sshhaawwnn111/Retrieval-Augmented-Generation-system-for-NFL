@@ -50,8 +50,15 @@ async def lifespan(app: FastAPI):
     # Log GPU availability
     logger.info(f"CUDA available: {torch.cuda.is_available()}")
     if torch.cuda.is_available():
-        logger.info(f"CUDA device: {torch.cuda.get_device_name(0)}")
         logger.info(f"CUDA device count: {torch.cuda.device_count()}")
+        logger.info(f"CUDA device name: {torch.cuda.get_device_name(0)}")
+        logger.info(f"CUDA version: {torch.version.cuda}")
+    else:
+        logger.warning("No CUDA devices detected")
+        logger.info(f"PyTorch version: {torch.__version__}")
+        logger.info(f"PyTorch built with CUDA: {torch.cuda.is_available()}")
+        logger.info(f"NVIDIA_VISIBLE_DEVICES: {os.environ.get('NVIDIA_VISIBLE_DEVICES', 'not set')}")
+        logger.info(f"CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'not set')}")
 
     # Get database credentials - start with settings defaults
     db_password = settings.DATABASE_PASSWORD
