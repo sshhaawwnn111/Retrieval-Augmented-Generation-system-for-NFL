@@ -1,12 +1,14 @@
 from app.agents.prompts.injury_prompt import INJURY_PROMPT
+from app.agents.verifier_agent import CitationVerifierLLM
 import asyncio
 import logging
 logger = logging.getLogger(__name__)
 
 class InjuryAgent:
-    def __init__(self, llm, retriever_client):
+    def __init__(self, llm, retriever_client, verifier=None):
         self.llm = llm  # This is VLLMClient
         self.retriever_client = retriever_client  # This is RetrieverClient
+        self.verifier = verifier or CitationVerifierLLM(llm)
 
     async def retrieve_context(self, query: str, k: int = 10, top_n: int = 5):
         """
@@ -26,7 +28,8 @@ class InjuryAgent:
 
     def format_context_from_documents(self, documents: list) -> str:
         """
-        Format retrieved documents into context string for LLM
+        Format retrieved documents into context string for LLM.
+        Ensures citations are wrapped in brackets to match Verifier expectations.
         """
         if not documents:
             return "No recent news updates available."
@@ -39,8 +42,10 @@ class InjuryAgent:
             citation = doc.get('citation', '')
             
             context_text += f"[{date}] {headline}\n{context}\n"
+            
             if citation:
                 context_text += f"Source: {citation}\n"
+                
             context_text += "\n"
         
         return context_text.strip()
@@ -77,13 +82,43 @@ class InjuryAgent:
         """
         Complete injury analysis workflow: retrieve + analyze
         """
+        # 1. Retrieve Documents
         documents = await self.retrieve_context(query, k=k, top_n=top_n)
         
         if not documents:
             logger.warning(f"No documents found for query: {query}")
             return None
         
-        return await self.analyze_injury_from_documents(query, documents)
+        # 2. Generate Analysis (now with citations)
+        analysis_text = await self.analyze_injury_from_documents(query, documents)
+
+        # 3. Verify Citations
+        try:
+            verification_results = await self.verifier.verify(
+                documents_json={"documents": documents},
+                generated_text=analysis_text
+            )
+            
+            # Optional: Append verification summary to the output
+            # This helps you see if the model is hallucinating
+            failed_checks = [v for v in verification_results if v['classification'] != 'supported']
+            
+            if failed_checks:
+                logger.warning(f"Verification found issues: {failed_checks}")
+                # You could choose to append a warning to the text here
+                analysis_text += "\n\n[Warning: Some citations could not be verified]"
+
+            # Return object with both text and verification data
+            # Note: You might need to update the return type hint or wrapper object
+            return {
+                "content": analysis_text,
+                "verification": verification_results
+            }
+
+        except Exception as e:
+            logger.error(f"Verification failed: {e}")
+            # Fallback to returning just the text if verification crashes
+            return {"content": analysis_text, "verification": []}
 
     async def summarize_to_one_sentence(self, player_name: str, analysis_text: str) -> str:
         """
@@ -92,20 +127,23 @@ class InjuryAgent:
         """
         summarization_prompt = f"""
         Summarize the following injury analysis for {player_name} into one concise sentence.
-        The summary should clearly state their current injury status, recovery outlook,
-        and whether they are expected to play in the given week.
+        
+        REQUIREMENTS:
+        1. Clearly state current injury status, recovery outlook, and play availability.
+        2. CRITICAL: You MUST include the citation tags (e.g. \cite{{[doc_id]}}) found in the source text.
+        3. Place citations immediately after the claims they support.
 
         Injury Analysis:
         {analysis_text}
         """
 
-        result = await self.llm.generate_text(
+        result_text = await self.llm.generate_text(
             prompt=summarization_prompt,
             system_prompt="You are a professional NFL injury analyst.",
             temperature=0.3,
             max_tokens=512
         )
-        return f"{player_name}: {result.content.strip()}"
+        return f"{player_name}: {result_text.strip()}"
     
     async def _analyze_single_player(self, player: str, week_number: int) -> str:
         """
@@ -115,14 +153,15 @@ class InjuryAgent:
         query = f"{player} injury status week {week_number}"
         try:
             # Retrieve and analyze
-            analysis = await self.analyze_injury(query)
-            
-            if not analysis:
+            result = await self.analyze_injury(query)
+
+            if not result:
                 logger.warning(f"No analysis generated for {player}")
                 return f"{player}: No recent injury data available"
             
+            analysis_text = result["content"]
             # Summarize to one sentence
-            summary = await self.summarize_to_one_sentence(player, analysis.content)
+            summary = await self.summarize_to_one_sentence(player, analysis_text)
             return summary
             
         except Exception as e:

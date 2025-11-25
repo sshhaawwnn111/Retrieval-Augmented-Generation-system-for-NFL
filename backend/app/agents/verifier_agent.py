@@ -34,7 +34,7 @@ class CitationVerifierLLM:
         for sentence, raw_citation in matches:
             cleaned_sentence = sentence.strip(" -\n")
             citation_id = self.normalize(raw_citation)
-            cleaned.append((cleaned_sentence, citation_id))
+            cleaned.append((citation_id, cleaned_sentence))
         return cleaned
 
     async def judge_with_llm(self, claim: str, evidence: str) -> str:
@@ -78,7 +78,7 @@ class CitationVerifierLLM:
 
         results = []
 
-        for claim, citation_id in pairs:
+        for citation_id, claim in pairs:
             evidence = lookup.get(citation_id)
 
             if evidence is None:

@@ -48,7 +48,7 @@ class PGVectorRetriever:
             detail = r[7] if len(r) > 7 else ""
             row_num = r[9] if len(r) > 9 else idx + 1
 
-            citation = f"[ref_{idx+1} doc_{doc_id} row_{row_num}]"
+            citation = f"[doc_{doc_id}]"
 
             results.append({
                 "doc_id": doc_id,
@@ -73,7 +73,7 @@ class PGVectorRetriever:
         return f"""
             WITH ranked AS (
                 SELECT 
-                    id, player_name, headline, date, notes, analysis
+                    id, player_name, headline, date, notes, analysis,
                     injury_status, injury_detail,
                     {self.embed_col} <=> %s::vector AS distance
                 FROM {self.table}

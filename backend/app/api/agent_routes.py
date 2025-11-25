@@ -11,6 +11,7 @@ from app.agents.injury_agent import InjuryAgent
 from app.agents.db_connection import DatabaseConnection
 from app.services.vllm_client import llm_client
 from app.services.retriever_client import retriever_client
+from app.agents.verifier_agent import CitationVerifierLLM
 from app.core.config import settings
 
 from app.models.schemas import (
@@ -65,7 +66,8 @@ def get_injury_agent() -> InjuryAgent:
     """Get singleton InjuryAgent instance"""
     global _injury_agent_instance
     if _injury_agent_instance is None:
-        _injury_agent_instance = InjuryAgent(llm_client, retriever_client)
+        verifier = CitationVerifierLLM(llm_client)
+        _injury_agent_instance = InjuryAgent(llm_client, retriever_client, verifier)
         logger.info("✓ Initialized singleton InjuryAgent")
     return _injury_agent_instance
 
@@ -124,7 +126,8 @@ async def analyze_injury(
         return {
             "player": request.player_name,
             "week": request.week_number,
-            "analysis": analysis,
+            "analysis": analysis['content'],
+            "verification": analysis['verification'],
             "status": "success"
         }
         
@@ -149,7 +152,7 @@ async def generate_injury_report(
     """
     try:
         logger.info(f"Generating injury report for {len(request.players)} players")
-        report = await injury_agent.generate_player_report(request.players, request.week_number)
+        report = await injury_agent.generate_team_injury_report(request.players, request.week_number)
 
         return {
             "week": request.week_number,

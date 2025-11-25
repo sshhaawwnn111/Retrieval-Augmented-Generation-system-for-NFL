@@ -59,6 +59,11 @@ async def lifespan(app: FastAPI):
             gpu_memory_utilization=settings.gpu_memory_utilization,
             max_model_len=settings.max_model_len,
             trust_remote_code=True,
+            # Performance optimizations for T4 (g4dn.xlarge)
+            # quantization="awq",             # Enforce AWQ kernel for speed on T4
+            enable_chunked_prefill=True,    # Prevents long prompts from blocking the GPU (Vital for T4)
+            enable_prefix_caching=True,     # Reuses KV cache for shared system prompts/examples
+            max_num_seqs=16,                # Limits concurrent requests to prevent latency degradation
         )
         
         engine = AsyncLLMEngine.from_engine_args(engine_args)

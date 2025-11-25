@@ -13,9 +13,13 @@ RUN apt-get update && apt-get install -y \
 # Upgrade pip
 RUN pip3 install --no-cache-dir --upgrade pip
 
+# 1. Install Torch specifically from the index (using --index-url, NOT extra)
+# This forces pip to ONLY look here for these packages
+RUN pip3 install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
 COPY requirements.txt ./
 
-# Install all dependencies (pip will read the --extra-index-url from the file)
+# 2. Install the rest (remove torch from requirements.txt or keep it, pip will see it's already satisfied)
 RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . /app

@@ -81,6 +81,7 @@ class InjuryAnalysisResponse(BaseModel):
     player: str = Field(..., description="Player name")
     week: int = Field(..., description="Week number")
     analysis: str = Field(..., description="Injury analysis (markdown)")
+    verification: List[dict] = Field(default_factory=list, description="Verification information")
     status: str = Field(..., description="Status of request")
 
 
