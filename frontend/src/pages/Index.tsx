@@ -11,7 +11,7 @@ const Index = () => {
       <main>
         <HeroSection />
         <ServicesGrid />
-        <StatsPreview />
+        {/* <StatsPreview /> */}
       </main>
       <AIChatbot />
     </div>
