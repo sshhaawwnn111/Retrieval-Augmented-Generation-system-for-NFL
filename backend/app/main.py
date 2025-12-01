@@ -170,11 +170,6 @@ async def health_check():
             "reader_host": settings.DATABASE_READER_HOST or "not_configured",
         },
         
-        # Reranker
-        "reranker": {
-            "service_url": settings.RERANKER_SERVICE_URL or "not_configured",
-        },
-        
         # CORS
         "cors_origins_count": len(settings.CORS_ORIGINS),
     }
