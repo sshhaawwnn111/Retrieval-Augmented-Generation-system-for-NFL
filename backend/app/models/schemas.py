@@ -82,6 +82,7 @@ class InjuryAnalysisResponse(BaseModel):
     week: int = Field(..., description="Week number")
     analysis: str = Field(..., description="Injury analysis (markdown)")
     verification: List[dict] = Field(default_factory=list, description="Verification information")
+    retrieved_documents: Optional[List[dict]] = Field(default_factory=list, description="Retrieved documents")
     status: str = Field(..., description="Status of request")
 
 

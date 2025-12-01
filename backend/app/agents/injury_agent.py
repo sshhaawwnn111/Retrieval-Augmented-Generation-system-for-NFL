@@ -92,33 +92,48 @@ class InjuryAgent:
         # 2. Generate Analysis (now with citations)
         analysis_text = await self.analyze_injury_from_documents(query, documents)
 
-        # 3. Verify Citations
-        try:
-            verification_results = await self.verifier.verify(
-                documents_json={"documents": documents},
-                generated_text=analysis_text
-            )
+        verification_results = []
+        max_retries = 1  # Allow one correction pass
+        
+        # 3. Verification & Correction Loop
+        for attempt in range(max_retries + 1):
+            try:
+                # Verify current text
+                verification_results = await self.verifier.verify(
+                    documents_json={"documents": documents},
+                    generated_text=analysis_text
+                )
+                
+                # Check for unsupported claims
+                failed_checks = [v for v in verification_results if v['classification'] != 'supported']
+                
+                # If perfect or we are out of retries, stop
+                if not failed_checks:
+                    if attempt > 0:
+                        logger.info(f"Correction successful on attempt {attempt}")
+                    break
+                
+                if attempt < max_retries:
+                    logger.warning(f"Verification found {len(failed_checks)} issues. Running auto-correction (Attempt {attempt+1}/{max_retries})...")
+                    
+                    # 4. Auto-Correct using Verifier's edit_report
+                    # edit_report returns the text string directly
+                    analysis_text = await self.verifier.edit_report(
+                        generated_text=analysis_text,
+                        verification_results=verification_results,
+                        documents_json={"documents": documents}
+                    )
             
-            # Optional: Append verification summary to the output
-            # This helps you see if the model is hallucinating
-            failed_checks = [v for v in verification_results if v['classification'] != 'supported']
-            
-            if failed_checks:
-                logger.warning(f"Verification found issues: {failed_checks}")
-                # You could choose to append a warning to the text here
-                analysis_text += "\n\n[Warning: Some citations could not be verified]"
+            except Exception as e:
+                logger.error(f"Verification/Correction cycle failed: {e}")
+                # If correction fails, we break and return what we have
+                break
 
-            # Return object with both text and verification data
-            # Note: You might need to update the return type hint or wrapper object
-            return {
-                "content": analysis_text,
-                "verification": verification_results
-            }
-
-        except Exception as e:
-            logger.error(f"Verification failed: {e}")
-            # Fallback to returning just the text if verification crashes
-            return {"content": analysis_text, "verification": []}
+        return {
+            "content": analysis_text,
+            "verification": verification_results,
+            "retrieved_documents": documents
+        }
 
     async def summarize_to_one_sentence(self, player_name: str, analysis_text: str) -> str:
         """
@@ -126,22 +141,28 @@ class InjuryAgent:
         Uses the LLM to condense the analysis into a concise statement.
         """
         summarization_prompt = f"""
-        Summarize the following injury analysis for {player_name} into one concise sentence.
-        
-        REQUIREMENTS:
-        1. Clearly state current injury status, recovery outlook, and play availability.
-        2. CRITICAL: You MUST include the citation tags (e.g. \cite{{[doc_id]}}) found in the source text.
-        3. Place citations immediately after the claims they support.
+### INSTRUCTIONS ###
+Summarize the injury analysis below for {player_name} into EXACTLY ONE concise sentence.
 
-        Injury Analysis:
-        {analysis_text}
-        """
+### REQUIREMENTS ###
+1. **Content**: Clearly state current injury status, recovery outlook, and play availability.
+2. **Citations**: You MUST preserve the citation tags (e.g. \cite{{[doc_id]}}) found in the source text. Place them immediately after the claims they support.
+3. **Format**: 
+   - Start directly with the summary. 
+   - Do NOT repeat the prompt.
+   - Do NOT generate a bibliography or reference list.
+
+### SOURCE ANALYSIS ###
+{analysis_text}
+
+### ONE SENTENCE SUMMARY ###
+"""
 
         result_text = await self.llm.generate_text(
             prompt=summarization_prompt,
-            system_prompt="You are a professional NFL injury analyst.",
-            temperature=0.3,
-            max_tokens=512
+            system_prompt="You are a strict editor. Summarize text concisely without adding external references.",
+            temperature=0.1,
+            max_tokens=150
         )
         return f"{player_name}: {result_text.strip()}"
     
@@ -153,13 +174,13 @@ class InjuryAgent:
         query = f"{player} injury status week {week_number}"
         try:
             # Retrieve and analyze
-            result = await self.analyze_injury(query)
+            analysis = await self.analyze_injury(query)
 
-            if not result:
+            if not analysis:
                 logger.warning(f"No analysis generated for {player}")
                 return f"{player}: No recent injury data available"
-            
-            analysis_text = result["content"]
+
+            analysis_text = analysis["content"]
             # Summarize to one sentence
             summary = await self.summarize_to_one_sentence(player, analysis_text)
             return summary

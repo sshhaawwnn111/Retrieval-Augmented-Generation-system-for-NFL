@@ -128,6 +128,7 @@ async def analyze_injury(
             "week": request.week_number,
             "analysis": analysis['content'],
             "verification": analysis['verification'],
+            "retrieved_documents": analysis['retrieved_documents'],
             "status": "success"
         }
         

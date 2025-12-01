@@ -13,16 +13,23 @@ class Settings(BaseSettings):
     service_port: int = 8001
     
     # vLLM Model Configuration
-    model_name: str = "meta-llama/Llama-2-7b-chat-hf"
+    model_name: str = "Qwen/Qwen2.5-7B-Instruct-AWQ"
     model_revision: str = "main"
-    model_dtype: str = "half"
+
+
+    # CRITICAL: AWQ requires dtype="auto" and quantization="awq"
+    model_dtype: str = "auto"
+    quantization: Optional[str] = "awq"
+
     tensor_parallel_size: int = 1
     gpu_memory_utilization: float = 0.9
-    max_model_len: int = 4096
-    
+    max_model_len: int = 8192
+    enable_prefix_caching: bool = True
+    enable_chunked_prefill: bool = False
+
     # Generation Defaults
     default_max_tokens: int = 512
-    default_temperature: float = 0.7
+    default_temperature: float = 0.5
     default_top_p: float = 0.95
     
     # Service Settings

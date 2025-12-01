@@ -105,6 +105,23 @@ async def lifespan(app: FastAPI):
         app.state.retriever = PGVectorRetriever()
         app.state.reranker = ModelReranker(os.environ.get("RERANK_MODEL", "zeroentropy/zerank-1-small"))
         logger.info("Services initialized")
+
+        # === ADD THIS WARMUP ===
+        logger.info("Warming up reranker to trigger lazy-loading...")
+        try:
+            # Running a dummy prediction forces the model to load its weights now
+            # instead of waiting for the first user request.
+            app.state.reranker.rerank_documents(
+                query="warmup", 
+                documents=[Document(content="warmup", metadata={})], 
+                top_n=1
+            )
+            logger.info("Reranker warmup complete.")
+        except Exception as e:
+            logger.error(f"Warmup failed: {e}")
+            # Optional: decide if you want to raise e and stop startup
+        # =======================
+
     except Exception as e:
         logger.exception("Failed to initialize service: %s", e)
         raise
@@ -292,5 +309,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8002,
+        workers=1,
         reload=False
     )
