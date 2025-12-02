@@ -82,7 +82,7 @@ const AIChatbot = () => {
   return (
     <>
       {/* Chat Toggle Button */}
-      <Button
+      {/* <Button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-gradient-to-r from-primary to-accent hover:opacity-90 shadow-lg"
         size="icon"
@@ -92,7 +92,7 @@ const AIChatbot = () => {
         ) : (
           <MessageCircle className="w-6 h-6 text-primary-foreground" />
         )}
-      </Button>
+      </Button> */}
 
       {/* Chat Window */}
       {isOpen && (

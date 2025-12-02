@@ -7,11 +7,10 @@ const Header = () => {
         <div className="flex items-center space-x-2">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">HR</span>
+              <span className="text-primary-foreground font-bold text-sm">AI</span>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground">Hopkins NFL AI Agents</h1>
-              <p className="text-xs text-muted-foreground">NFL Analytics Suite</p>
+              <h1 className="text-lg font-bold text-foreground">Football News AI</h1>
             </div>
           </div>
         </div>

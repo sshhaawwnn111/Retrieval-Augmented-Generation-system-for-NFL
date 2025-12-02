@@ -57,39 +57,39 @@ const services = [
   //   statusColor: "success",
   //   hasDialog: true
   // },
-  {
-    icon: Activity,
-    title: "Injury Analytics",
-    description: "Advanced injury prediction and recovery timeline analysis using machine learning models.",
-    features: ["Risk Modeling", "Recovery Timelines", "Load Management"],
-    status: "Daily Updates",
-    statusColor: "accent",
-    hasDialog: true,
-    endpoint: "/api/v1/agents/injury/analyze",
-    defaultPayload: { week_number: 11 }
-  },
-  {
-    icon: DollarSign,
-    title: "Contract Analysis",
-    description: "Smart contract evaluation with market value analysis and cap space optimization.",
-    features: ["Market Value", "Cap Impact", "Trade Analysis"],
-    status: "Real-time",
-    statusColor: "success",
-    hasDialog: true,
-    endpoint: "/api/v1/agents/injury/analyze",
-    defaultPayload: { week_number: 11 }
-  },
-  {
-    icon: TrendingUp,
-    title: "Performance Trends",
-    description: "Long-term performance trend analysis with season projection models.",
-    features: ["Trend Analysis", "Season Projections", "Comparative Analytics"],
-    status: "Live Data",
-    statusColor: "success",
-    hasDialog: true,
-    endpoint: "/api/v1/agents/injury/analyze",
-    defaultPayload: { week_number: 11 }
-  },
+  // {
+  //   icon: Activity,
+  //   title: "Injury Analytics",
+  //   description: "Advanced injury prediction and recovery timeline analysis using machine learning models.",
+  //   features: ["Risk Modeling", "Recovery Timelines", "Load Management"],
+  //   status: "Daily Updates",
+  //   statusColor: "accent",
+  //   hasDialog: true,
+  //   endpoint: "/api/v1/agents/injury/analyze",
+  //   defaultPayload: { week_number: 11 }
+  // },
+  // {
+  //   icon: DollarSign,
+  //   title: "Contract Analysis",
+  //   description: "Smart contract evaluation with market value analysis and cap space optimization.",
+  //   features: ["Market Value", "Cap Impact", "Trade Analysis"],
+  //   status: "Real-time",
+  //   statusColor: "success",
+  //   hasDialog: true,
+  //   endpoint: "/api/v1/agents/injury/analyze",
+  //   defaultPayload: { week_number: 11 }
+  // },
+  // {
+  //   icon: TrendingUp,
+  //   title: "Performance Trends",
+  //   description: "Long-term performance trend analysis with season projection models.",
+  //   features: ["Trend Analysis", "Season Projections", "Comparative Analytics"],
+  //   status: "Live Data",
+  //   statusColor: "success",
+  //   hasDialog: true,
+  //   endpoint: "/api/v1/agents/injury/analyze",
+  //   defaultPayload: { week_number: 11 }
+  // },
   // {
   //   icon: Shield,
   //   title: "Draft Intelligence",
