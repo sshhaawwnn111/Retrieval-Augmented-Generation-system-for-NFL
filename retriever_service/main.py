@@ -169,10 +169,14 @@ def health():
 @app.post("/retrieve", response_model=List[Document])
 def retrieve(req: RetrieveRequest, db: DatabaseConnection = Depends(get_db) ):
     try:
+        # Check if request has filters, otherwise None
+        filters = getattr(req, "filters", None)
+        
         candidates = app.state.retriever.search(
             db,
             req.query,
             k=req.k,
+            filters=filters
         )
 
         docs_for_rerank: List[Document] = []
@@ -247,12 +251,17 @@ def rerank(query_and_docs: dict):
 def retrieve_and_rerank(req: RetrieveAndRerankRequest, db: DatabaseConnection = Depends(get_db)):
     try:
         logger.info(f"Retrieve and rerank request - query: '{req.query[:100]}...', k={req.k}, top_n={req.top_n}")
+        
+        # Check if request has filters, otherwise None
+        filters = getattr(req, "filters", None)
+
         # 1. retrieval
         logger.info(f"Starting retrieval with k={req.k}")
         candidates = app.state.retriever.search(
             db, 
             req.query, 
             k=req.k,
+            filters=filters
         )
         logger.info(f"Retrieved {len(candidates)} candidates from database")
 

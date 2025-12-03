@@ -1,10 +1,10 @@
-
 """
 Advanced agent routing with CoordinatorAgent
 """
 import logging
 from typing import Generator
 from fastapi import APIRouter, HTTPException, status, Depends
+from datetime import datetime, timedelta
 
 from app.agents.coordinator import CoordinatorAgent
 from app.agents.injury_agent import InjuryAgent
@@ -71,6 +71,11 @@ def get_injury_agent() -> InjuryAgent:
         logger.info("✓ Initialized singleton InjuryAgent")
     return _injury_agent_instance
 
+def get_date_range(date: str) -> int:
+    start_date = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=180)).strftime("%Y-%m-%d")
+    end_date = datetime.strptime(date, "%Y-%m-%d").strftime("%Y-%m-%d")
+    return start_date, end_date
+
 # ========== COORDINATOR ROUTES ==========
 
 @router.post("/weekly-report", response_model=WeeklyReportResponse)
@@ -84,12 +89,12 @@ async def generate_weekly_report(
     This uses the CoordinatorAgent to orchestrate injury analysis across all players.
     """
     try:
-        logger.info(f"Generating weekly report for week {request.week_number}")
+        logger.info(f"Generating weekly report for week {request.date}")
 
-        report = await coordinator.generate_weekly_report(request.week_number)
+        report = await coordinator.generate_weekly_report(request.date)
 
         return {
-            "week": request.week_number,
+            "date": request.date,
             "report": report,
             "status": "success"
         }
@@ -114,8 +119,15 @@ async def analyze_injury(
     Returns detailed injury analysis for one player.
     """
     try:
-        query = f"{request.player_name} injury status week {request.week_number}"
-        analysis = await injury_agent.analyze_injury(query)
+        start_date, end_date = get_date_range(request.date)
+
+        query = f"{request.player_name} injury status date {request.date}"
+        analysis = await injury_agent.analyze_injury(
+            query, 
+            filters={"player_name": request.player_name, 
+                     "start_date": start_date, 
+                     "end_date": end_date}
+        )
         
         if not analysis:
             raise HTTPException(
@@ -125,7 +137,7 @@ async def analyze_injury(
         
         return {
             "player": request.player_name,
-            "week": request.week_number,
+            "date": request.date,
             "analysis": analysis['content'],
             "verification": analysis['verification'],
             "retrieved_documents": analysis['retrieved_documents'],
@@ -153,10 +165,10 @@ async def generate_injury_report(
     """
     try:
         logger.info(f"Generating injury report for {len(request.players)} players")
-        report = await injury_agent.generate_team_injury_report(request.players, request.week_number)
+        report = await injury_agent.generate_team_injury_report(request.players, request.date)
 
         return {
-            "week": request.week_number,
+            "date": request.date,
             "players": request.players,
             "report": report,
             "status": "success"
@@ -172,24 +184,24 @@ async def generate_injury_report(
 
 # ========== DATABASE ROUTES ==========
 
-@router.get("/weekly-report/{week_number}")
-async def get_past_report(week_number: int, coordinator: CoordinatorAgent = Depends(get_coordinator)):
+@router.get("/weekly-report/{date}")
+async def get_past_report(date: str, coordinator: CoordinatorAgent = Depends(get_coordinator)):
     """
     Retrieve a previously generated weekly report
     """
     try:
         # TODO: Retrieve from S3
 
-        report = coordinator.get_past_report(week_number)
+        report = coordinator.get_past_report(date)
         
         if not report:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No report found for week {week_number}"
+                detail=f"No report found for date {date}"
             )
         
         return {
-            "week": week_number,
+            "date": date,
             "report": report
         }
         

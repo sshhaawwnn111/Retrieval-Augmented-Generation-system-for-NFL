@@ -36,7 +36,7 @@ class ModelReranker:
         model_inputs = [[query, doc.content] for doc in documents]
 
         logger.info(f"Scoring {len(model_inputs)} document pairs...")
-        with torch.no_grad():
+        with torch.inference_mode():
             scores = self.model.predict(
                 model_inputs, 
                 batch_size=4, 

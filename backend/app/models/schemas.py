@@ -65,21 +65,27 @@ class ReportGenerationResponse(BaseModel):
 
 class InjuryAnalysisRequest(BaseModel):
     player_name: str = Field(..., description="Player name to analyze")
-    week_number: int = Field(..., description="NFL week number", ge=1, le=18)
+    date: str = Field(..., description="Date of analysis (YYYY-MM-DD)")
 
 
 class InjuryReportRequest(BaseModel):
     players: List[str] = Field(..., description="List of player names")
-    week_number: int = Field(..., description="NFL week number", ge=1, le=18)
+    date: str = Field(..., description="Date of report (YYYY-MM-DD)")
 
 
 class WeeklyReportRequest(BaseModel):
-    week_number: int = Field(..., description="NFL week number", ge=1, le=18)
+    date: str = Field(..., description="Date of report (YYYY-MM-DD)")
+
+
+class WeeklyReportResponse(BaseModel):
+    date: str = Field(..., description="Date of report (YYYY-MM-DD)")
+    report: str = Field(..., description="Full team injury report")
+    status: str = Field(..., description="Status of request")
 
 
 class InjuryAnalysisResponse(BaseModel):
     player: str = Field(..., description="Player name")
-    week: int = Field(..., description="Week number")
+    date: str = Field(..., description="Date of analysis (YYYY-MM-DD)")
     analysis: str = Field(..., description="Injury analysis (markdown)")
     verification: List[dict] = Field(default_factory=list, description="Verification information")
     retrieved_documents: Optional[List[dict]] = Field(default_factory=list, description="Retrieved documents")
@@ -87,13 +93,7 @@ class InjuryAnalysisResponse(BaseModel):
 
 
 class InjuryReportResponse(BaseModel):
-    week: int = Field(..., description="Week number")
+    date: str = Field(..., description="Date of report (YYYY-MM-DD)")
     players: List[str] = Field(..., description="Players analyzed")
     report: str = Field(..., description="Combined injury report")
-    status: str = Field(..., description="Status of request")
-
-
-class WeeklyReportResponse(BaseModel):
-    week: int = Field(..., description="Week number")
-    report: str = Field(..., description="Full team injury report")
     status: str = Field(..., description="Status of request")

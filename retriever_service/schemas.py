@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 class RetrieveRequest(BaseModel):
     query: str
     k: Optional[int] = 5
+    filters: Optional[Dict[str, str]] = None
 
 
 class RetrievedDocument(BaseModel):
@@ -44,6 +45,7 @@ class RetrieveAndRerankRequest(BaseModel):
     k: Optional[int] = 20
     sql: Optional[str] = None
     top_n: Optional[int] = 5
+    filters: Optional[Dict[str, str]] = None
 
 
 class RetrieveAndRerankResponse(BaseModel):

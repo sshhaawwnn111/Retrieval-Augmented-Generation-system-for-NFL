@@ -10,7 +10,7 @@ class InjuryAgent:
         self.retriever_client = retriever_client  # This is RetrieverClient
         self.verifier = verifier or CitationVerifierLLM(llm)
 
-    async def retrieve_context(self, query: str, k: int = 10, top_n: int = 5):
+    async def retrieve_context(self, query: str, k: int = 10, top_n: int = 5, filters: dict = None):
         """
         Centralized retrieval method used by all agents.
         Can be customized here if needed for specific use cases.
@@ -19,7 +19,8 @@ class InjuryAgent:
             documents = await self.retriever_client.retrieve_and_rerank(
                 query=query,
                 k=k,
-                top_n=top_n
+                top_n=top_n,
+                filters=filters
             )
             return documents
         except Exception as e:
@@ -66,7 +67,11 @@ class InjuryAgent:
         # Generate analysis with LLM
         result = await self.llm.generate_text(
             prompt=prompt_text,
-            system_prompt="You are a professional NFL injury analyst. Provide concise analysis in 2-3 short paragraphs.",
+            system_prompt=(
+                "You are a professional NFL injury analyst. "
+                "Provide concise analysis in 2-3 short paragraphs. "
+                "IMPORTANT: You must cite your sources using the format \\cite{[doc_id]} at the end of sentences supporting your claims."
+            ),
             temperature=0.3,
             max_tokens=256,
             stop_sequences=[
@@ -78,13 +83,13 @@ class InjuryAgent:
         
         return result
 
-    async def analyze_injury(self, query: str, k: int = 10, top_n: int = 5):
+    async def analyze_injury(self, query: str, k: int = 10, top_n: int = 5, filters: dict = None):
         """
         Complete injury analysis workflow: retrieve + analyze
         """
         # 1. Retrieve Documents
-        documents = await self.retrieve_context(query, k=k, top_n=top_n)
-        
+        documents = await self.retrieve_context(query, k=k, top_n=top_n, filters=filters)
+
         if not documents:
             logger.warning(f"No documents found for query: {query}")
             return None
@@ -103,14 +108,18 @@ class InjuryAgent:
                     documents_json={"documents": documents},
                     generated_text=analysis_text
                 )
-                
+
+                if not verification_results:
+                    logger.info("No citation found.")
+                    break
+            
                 # Check for unsupported claims
                 failed_checks = [v for v in verification_results if v['classification'] != 'supported']
                 
                 # If perfect or we are out of retries, stop
                 if not failed_checks:
-                    if attempt > 0:
-                        logger.info(f"Correction successful on attempt {attempt}")
+                    logger.info(f"Correction successful on attempt {attempt+1}/{max_retries}")
+                    
                     break
                 
                 if attempt < max_retries:
@@ -174,7 +183,7 @@ Summarize the injury analysis below for {player_name} into EXACTLY ONE concise s
         query = f"{player} injury status week {week_number}"
         try:
             # Retrieve and analyze
-            analysis = await self.analyze_injury(query)
+            analysis = await self.analyze_injury(query, filters={"player_name": player})
 
             if not analysis:
                 logger.warning(f"No analysis generated for {player}")

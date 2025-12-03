@@ -1,6 +1,6 @@
 import logging
 import httpx
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,8 @@ class RetrieverClient:
         self, 
         query: str, 
         k: int = 10, 
-        top_n: int = 5
+        top_n: int = 5,
+        filters: Optional[Dict[str, Any]] = None
     ) -> List[Dict[str, Any]]:
         """
         Retrieve and rerank documents relevant to the query
@@ -32,14 +33,20 @@ class RetrieverClient:
         """
         try:
             logger.info(f"Retrieving documents at {self.base_url}/retrieve_and_rerank")
+            
+            payload = {
+                "query": query,
+                "k": k,
+                "top_n": top_n
+            }
+            
+            if filters:
+                payload["filters"] = filters
+
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
                     f"{self.base_url}/retrieve_and_rerank",
-                    json={
-                        "query": query,
-                        "k": k,
-                        "top_n": top_n
-                    }
+                    json=payload
                 )
                 response.raise_for_status()
                 data = response.json()

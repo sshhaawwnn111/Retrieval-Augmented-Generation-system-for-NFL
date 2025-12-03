@@ -1,6 +1,7 @@
 import re
 import json
 from typing import List, Dict, Tuple, Any
+import asyncio
 
 class CitationVerifierLLM:
     """
@@ -16,25 +17,60 @@ class CitationVerifierLLM:
                .replace(" ", "_")
         )
 
+    def parse_citations(self, raw: str) -> List[str]:
+        """
+        Parse '[doc_1, doc_2]' into ['doc_1', 'doc_2']
+        """
+        s = raw.replace("[", "").replace("]", "")
+        # Split by comma or space, filter empty
+        return [p.strip() for p in re.split(r'[,\s]+', s) if p.strip()]
+
+    def _clean_claim_text(self, text: str) -> str:
+        """
+        Remove conversational filler and prefixes to normalize claims for deduplication.
+        """
+        # Remove Markdown bolding
+        text = text.replace("**", "")
+        # Remove prefixes like "Output Report:", "Final Report:"
+        text = re.sub(r"^(Output|Final|Corrected|Input)\s*Report:?", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"^(Here is|This is) the .*?:", "", text, flags=re.IGNORECASE)
+        # Remove numbering
+        text = re.sub(r"^\d+\.\s*", "", text)
+        return text.strip(" -:,\n")
+
     def build_lookup(self, documents: List[Dict[str, Any]]) -> Dict[str, str]:
         table = {}
         for d in documents:
-            cid = self.normalize(d["citation"])
-            table[cid] = (
-                f"{d['player_name']}: {d['headline']} on {d['date']} "
-                f"(Status: {d['injury_status']}, Detail: {d['injury_detail']})"
-            )
+            # Ensure we match the ID format used in parse_citations
+            cid = d["citation"].replace("[", "").replace("]", "").strip()
+            
+            table[cid] = d["context_text"]
         return table
 
-    def extract_claims(self, text: str) -> List[Tuple[str, str]]:
+    def extract_claims(self, text: str) -> List[Tuple[List[str], str]]:
         pattern = r"(.*?)(?:\\cite\{(\[.*?])\})"
         matches = re.findall(pattern, text)
 
         cleaned = []
+        seen = set()
+
         for sentence, raw_citation in matches:
-            cleaned_sentence = sentence.strip(" -\n")
-            citation_id = self.normalize(raw_citation)
-            cleaned.append((citation_id, cleaned_sentence))
+            # Parse citations list
+            citation_ids = self.parse_citations(raw_citation)
+            if not citation_ids:
+                continue
+
+            # Clean claim text for deduplication
+            core_text = self._clean_claim_text(sentence)
+            
+            if len(core_text) < 5:
+                continue
+
+            # Deduplicate based on core text
+            if core_text not in seen:
+                seen.add(core_text)
+                cleaned.append((citation_ids, core_text))
+                
         return cleaned
 
     async def judge_with_llm(self, claim: str, evidence: str) -> str:
@@ -62,13 +98,16 @@ class CitationVerifierLLM:
 
         answer = result.strip().lower()
 
-        if answer == "supported":
-            return "supported"
-        if "not" in answer:
+        # FIX: More robust parsing logic
+        # Check "not supported" first because it contains the word "supported"
+        if "not supported" in answer:
             return "not supported"
+        if "supported" in answer:
+            return "supported"
         if "neutral" in answer:
             return "neutral"
 
+        # Fallback
         return "neutral"
 
     async def verify(self, documents_json: dict, generated_text: str):
@@ -76,32 +115,65 @@ class CitationVerifierLLM:
         lookup = self.build_lookup(documents)
         pairs = self.extract_claims(generated_text)
 
-        results = []
+        # Prepare tasks for parallel execution
+        tasks = []
+        task_metadata = []
 
-        for citation_id, claim in pairs:
-            evidence = lookup.get(citation_id)
-
-            if evidence is None:
-                results.append({
+        for citation_ids, claim in pairs:
+            # Gather evidence from ALL citations
+            evidence_parts = []
+            
+            for cid in citation_ids:
+                if cid in lookup:
+                    evidence_parts.append(lookup[cid])
+            
+            combined_evidence = "\n".join(evidence_parts)
+            
+            if not combined_evidence:
+                # Handle missing evidence immediately without LLM
+                task_metadata.append({
                     "claim": claim,
-                    "citation_id": citation_id,
+                    "citation_id": ",".join(citation_ids),
                     "evidence": None,
-                    "classification": "not supported (missing evidence)"
+                    "classification": "not supported (missing evidence)",
+                    "is_task": False
                 })
-                continue
+            else:
+                # Schedule LLM check
+                tasks.append(self.judge_with_llm(claim, combined_evidence))
+                task_metadata.append({
+                    "claim": claim,
+                    "citation_id": ",".join(citation_ids),
+                    "evidence": combined_evidence,
+                    "is_task": True
+                })
 
-            classification = await self.judge_with_llm(claim, evidence)
-
-            results.append({
-                "claim": claim,
-                "citation_id": citation_id,
-                "evidence": evidence,
-                "classification": classification
-            })
+        # Run all LLM checks in parallel
+        llm_results = await asyncio.gather(*tasks)
+        
+        # Reassemble results in order
+        results = []
+        llm_result_idx = 0
+        
+        for meta in task_metadata:
+            if meta["is_task"]:
+                classification = llm_results[llm_result_idx]
+                llm_result_idx += 1
+                results.append({
+                    "claim": meta["claim"],
+                    "citation_id": meta["citation_id"],
+                    "evidence": meta["evidence"],
+                    "classification": classification
+                })
+            else:
+                results.append({
+                    "claim": meta["claim"],
+                    "citation_id": meta["citation_id"],
+                    "evidence": meta["evidence"],
+                    "classification": meta["classification"]
+                })
 
         return results
-
-
 
     async def edit_report(
         self,
@@ -147,9 +219,12 @@ class CitationVerifierLLM:
             4. Missing evidence 
             - Remove the claim or rewrite using only available data.
 
-            5. Final output must be a polished, flowing narrative report, not bullet points, not JSON.
+            5. Final output must be a polished, flowing narrative report.
+            - DO NOT include headers like "Output Report", "Final Report", or "Corrected Report".
+            - DO NOT include conversational filler like "Here is the report".
+            - Return ONLY the report body.
 
-            6. Every factual statement must cite an evidence key using the exact format: \cite{{[ref_x doc_y row_z]}}
+            6. Every factual statement must cite an evidence key using the exact format: \cite{{[doc_id]}}
 
             Return the corrected report text.
         """

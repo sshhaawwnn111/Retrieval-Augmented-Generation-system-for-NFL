@@ -17,7 +17,7 @@ class PGVectorRetriever:
         vec = self.model.encode(text, normalize_embeddings=True).tolist()
         return f"[{','.join(str(x) for x in vec)}]"
 
-    def search(self, db, query: str, k: int = 20, sql_override: Optional[str] = None) -> List[Dict]:
+    def search(self, db, query: str, k: int = 20, filters: Optional[Dict] = None, sql_override: Optional[str] = None) -> List[Dict]:
         """
         Search using DatabaseConnection's execute_query method
         
@@ -25,12 +25,40 @@ class PGVectorRetriever:
             db: DatabaseConnection instance
             query: Search query text
             k: Number of results to return
+            filters: Optional dictionary of col:value pairs (e.g. {"player_name": "Lamar Jackson"})
             sql_override: Optional SQL query override
         """
         qvec = self.embed(query)
 
-        sql_to_use = self._default_query() if not sql_override else sql_override.strip()
-        params = (qvec, k)
+        if sql_override:
+            sql_to_use = sql_override.strip()
+            params = (qvec, k)
+        else:
+            # Build dynamic WHERE clause
+            where_conditions = []
+            filter_values = []
+            if filters:
+                for col, val in filters.items():
+                    # Handle special date range filters mapping to the 'date' column
+                    if col == "start_date":
+                        where_conditions.append("date >= %s")
+                        filter_values.append(val)
+                    elif col == "end_date":
+                        where_conditions.append("date <= %s")
+                        filter_values.append(val)
+                    else:
+                        # Note: Ensure 'col' is a safe column name to prevent injection here if input is untrusted
+                        # Simple validation to ensure col is just alphanumeric/underscores
+                        if not col.replace("_", "").isalnum():
+                            continue
+                        where_conditions.append(f"{col} = %s")
+                        filter_values.append(val)
+            
+            where_clause = f"WHERE {' AND '.join(where_conditions)}" if where_conditions else ""
+            sql_to_use = self._default_query(where_clause)
+            
+            # Params order: vector, filter_values..., limit
+            params = tuple([qvec] + filter_values + [k])
 
         # Use execute_query instead of raw cursor
         rows = db.execute_query(sql_to_use, params)
@@ -68,7 +96,7 @@ class PGVectorRetriever:
 
         return results
     
-    def _default_query(self) -> str:
+    def _default_query(self, where_clause: str = "") -> str:
         """Default SQL query for vector search"""
         return f"""
             WITH ranked AS (
@@ -77,6 +105,7 @@ class PGVectorRetriever:
                     injury_status, injury_detail,
                     {self.embed_col} <=> %s::vector AS distance
                 FROM {self.table}
+                {where_clause}
                 ORDER BY distance
                 LIMIT %s
             )
