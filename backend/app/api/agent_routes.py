@@ -8,6 +8,9 @@ from datetime import datetime, timedelta
 
 from app.agents.coordinator import CoordinatorAgent
 from app.agents.injury_agent import InjuryAgent
+from app.agents.waiver_agent import WaiverAgent
+from app.agents.news_agent import NewsAgent
+from app.agents.performance_agent import PerformanceAgent
 from app.agents.db_connection import DatabaseConnection
 from app.services.vllm_client import llm_client
 from app.services.retriever_client import retriever_client
@@ -22,6 +25,7 @@ from app.models.schemas import (
     WeeklyReportRequest,
     WeeklyReportResponse
 )
+from app.models.schemas import GenericAnalysisRequest, GenericAnalysisResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -49,6 +53,10 @@ def get_db_writer() -> Generator[DatabaseConnection, None, None]:
 # Singleton instances
 _coordinator_instance = None
 _injury_agent_instance = None
+_news_agent_instance = None
+_performance_agent_instance = None
+_waiver_agent_instance = None
+
 
 def get_coordinator() -> CoordinatorAgent:
     """
@@ -70,6 +78,32 @@ def get_injury_agent() -> InjuryAgent:
         _injury_agent_instance = InjuryAgent(llm_client, retriever_client, verifier)
         logger.info("✓ Initialized singleton InjuryAgent")
     return _injury_agent_instance
+
+def get_news_agent() -> NewsAgent:
+    global _news_agent_instance
+    if _news_agent_instance is None:
+        verifier = CitationVerifierLLM(llm_client)
+        _news_agent_instance = NewsAgent(llm_client, retriever_client, verifier)
+        logger.info("✓ Initialized singleton NewsAgent")
+    return _news_agent_instance
+
+
+def get_performance_agent() -> PerformanceAgent:
+    global _performance_agent_instance
+    if _performance_agent_instance is None:
+        verifier = CitationVerifierLLM(llm_client)
+        _performance_agent_instance = PerformanceAgent(llm_client, retriever_client, verifier)
+        logger.info("✓ Initialized singleton PerformanceAgent")
+    return _performance_agent_instance
+
+
+def get_waiver_agent() -> WaiverAgent:
+    global _waiver_agent_instance
+    if _waiver_agent_instance is None:
+        verifier = CitationVerifierLLM(llm_client)
+        _waiver_agent_instance = WaiverAgent(llm_client, retriever_client, verifier)
+        logger.info("✓ Initialized singleton WaiverAgent")
+    return _waiver_agent_instance
 
 def get_date_range(date: str) -> int:
     start_date = (datetime.strptime(date, "%Y-%m-%d") - timedelta(days=180)).strftime("%Y-%m-%d")
@@ -180,6 +214,57 @@ async def generate_injury_report(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate injury report: {str(e)}"
         )
+
+
+@router.post("/news/analyze", response_model=GenericAnalysisResponse)
+async def analyze_news(
+    request: GenericAnalysisRequest,
+    news_agent: NewsAgent = Depends(get_news_agent)
+):
+    try:
+        result = await news_agent.analyze_news(request.query, k=request.k, top_n=request.top_n)
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No news data found")
+        return {"content": result["content"], "verification": result.get("verification", []), "retrieved_documents": result.get("retrieved_documents", []), "status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error analyzing news: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/performance/analyze", response_model=GenericAnalysisResponse)
+async def analyze_performance(
+    request: GenericAnalysisRequest,
+    performance_agent: PerformanceAgent = Depends(get_performance_agent)
+):
+    try:
+        result = await performance_agent.analyze_performance(request.query, k=request.k, top_n=request.top_n)
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No performance data found")
+        return {"content": result["content"], "verification": result.get("verification", []), "retrieved_documents": result.get("retrieved_documents", []), "status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error analyzing performance: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+
+
+@router.post("/waiver/analyze", response_model=GenericAnalysisResponse)
+async def analyze_waiver(
+    request: GenericAnalysisRequest,
+    waiver_agent: WaiverAgent = Depends(get_waiver_agent)
+):
+    try:
+        result = await waiver_agent.analyze_waiver(request.query, k=request.k, top_n=request.top_n)
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No waiver data found")
+        return {"content": result["content"], "verification": result.get("verification", []), "retrieved_documents": result.get("retrieved_documents", []), "status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error analyzing waiver: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 # ========== DATABASE ROUTES ==========

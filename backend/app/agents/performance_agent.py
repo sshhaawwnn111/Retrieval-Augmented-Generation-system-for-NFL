@@ -1,6 +1,7 @@
 import logging
 import asyncio
 from app.agents.prompts.performance_prompt import PERFORMANCE_PROMPT
+from app.agents.verifier_agent import CitationVerifierLLM
 
 logger = logging.getLogger(__name__)
 
@@ -12,9 +13,10 @@ class PerformanceAgent:
     LLM prompt using PERFORMANCE_PROMPT, and generates analysis.
     """
 
-    def __init__(self, llm, retriever_client):
+    def __init__(self, llm, retriever_client, verifier=None):
         self.llm = llm
         self.retriever_client = retriever_client
+        self.verifier = verifier or CitationVerifierLLM(llm)
 
     async def retrieve_context(self, query: str, k: int = 10, top_n: int = 5):
         try:
@@ -65,14 +67,59 @@ class PerformanceAgent:
 
         return result
 
-    async def analyze_performance(self, query: str, k: int = 10, top_n: int = 5):
+    async def analyze_performance(self, query: str, k: int = 10, top_n: int = 5, filters: dict = None):
+        """
+        Full pipeline: retrieve -> analyze -> verify/correct
+        Returns a dict with keys: content, verification, retrieved_documents
+        """
+        # 1. Retrieve
         documents = await self.retrieve_context(query, k=k, top_n=top_n)
 
         if not documents:
             logger.warning(f"No performance documents found for query: {query}")
             return None
 
-        return await self.analyze_performance_from_documents(query, documents)
+        # 2. Generate analysis
+        analysis_text = await self.analyze_performance_from_documents(query, documents)
+
+        verification_results = []
+        max_retries = 1
+
+        # 3. Verification & Correction Loop
+        for attempt in range(max_retries + 1):
+            try:
+                verification_results = await self.verifier.verify(
+                    documents_json={"documents": documents},
+                    generated_text=analysis_text
+                )
+
+                if not verification_results:
+                    logger.info("No citation found.")
+                    break
+
+                failed_checks = [v for v in verification_results if v['classification'] != 'supported']
+
+                if not failed_checks:
+                    logger.info(f"Correction successful on attempt {attempt+1}/{max_retries}")
+                    break
+
+                if attempt < max_retries:
+                    logger.warning(f"Verification found {len(failed_checks)} issues. Running auto-correction (Attempt {attempt+1}/{max_retries})...")
+                    analysis_text = await self.verifier.edit_report(
+                        generated_text=analysis_text,
+                        verification_results=verification_results,
+                        documents_json={"documents": documents}
+                    )
+
+            except Exception as e:
+                logger.error(f"Verification/Correction cycle failed: {e}")
+                break
+
+        return {
+            "content": analysis_text,
+            "verification": verification_results,
+            "retrieved_documents": documents
+        }
 
     async def summarize_to_one_sentence(self, subject: str, analysis_text: str) -> str:
         summarization_prompt = f"""
