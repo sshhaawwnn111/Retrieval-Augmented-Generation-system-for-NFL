@@ -17,7 +17,7 @@ const AIChatbot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "Hi! I'm Hopkins-Rotowire SmartChat 🏈 Ask me about player stats, team performance, injury reports, or any NFL-related questions.",
+      text: "Hi! I'm Football News SmartChat 🏈 Ask me about player stats, team performance, injury reports, or any NFL-related questions.",
       isBot: true,
       timestamp: new Date()
     }
@@ -34,7 +34,7 @@ const AIChatbot = () => {
       isBot: false,
       timestamp: new Date()
     };
-    
+
     setMessages(prev => [...prev, userMessage]);
     const currentInput = inputValue;
     setInputValue("");
@@ -98,7 +98,7 @@ const AIChatbot = () => {
       {isOpen && (
         <Card className="fixed bottom-24 right-6 z-40 w-80 md:w-96 h-96 shadow-xl border-border">
           <CardHeader className="pb-3 bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-t-lg">
-            <CardTitle className="text-lg font-semibold">Hopkins-Rotowire SmartChat</CardTitle>
+            <CardTitle className="text-lg font-semibold">Football News SmartChat</CardTitle>
             <p className="text-sm text-primary-foreground/80">Ask me anything about the NFL 🏈</p>
           </CardHeader>
           
@@ -121,6 +121,13 @@ const AIChatbot = () => {
                   </div>
                 </div>
               ))}
+              {isPending && (
+                <div className="flex justify-start">
+                  <div className="max-w-[80%] p-3 rounded-lg text-sm bg-muted text-foreground">
+                    <span className="animate-pulse">Thinking...</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Input Area */}
@@ -132,6 +139,7 @@ const AIChatbot = () => {
                   onKeyPress={handleKeyPress}
                   placeholder="Ask about the NFL..."
                   className="flex-1"
+                  disabled={isPending}
                 />
                 <Button
                   onClick={handleSendMessage}

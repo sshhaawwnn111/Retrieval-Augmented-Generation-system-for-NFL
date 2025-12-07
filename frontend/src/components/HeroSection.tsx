@@ -22,7 +22,7 @@ const HeroSection = () => {
         </Badge>
         
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-white to-accent-muted bg-clip-text text-transparent">
-          Hopkins NFL AI Agents
+          Football News AI
         </h1>
         
         <p className="text-xl md:text-2xl mb-4 text-white/90 max-w-3xl mx-auto">
@@ -30,7 +30,7 @@ const HeroSection = () => {
         </p>
         
         <p className="text-lg mb-8 text-white/80 max-w-2xl mx-auto">
-          Revolutionizing NFL front office operations with intelligent scouting reports, 
+          Revolutionizing NFL front office operations with intelligent reports, 
           injury analysis, contract evaluation, and data-driven insights.
         </p>
 

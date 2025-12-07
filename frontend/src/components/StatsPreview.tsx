@@ -4,10 +4,10 @@ import { Progress } from "@/components/ui/progress";
 import { TrendingUp, TrendingDown, Activity, Target } from "lucide-react";
 
 const StatsPreview = () => {
-  const sampleReports = [
+  const reports = [
     {
       title: "Weekly Injury Report",
-      description: "AI-generated injury risk assessment",
+      description: "Advanced injury risk assessment",
       lastUpdated: "2 hours ago",
       metrics: [
         { label: "High Risk Players", value: 8, trend: "up", color: "warning" },
@@ -40,12 +40,12 @@ const StatsPreview = () => {
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Live Analytics Preview</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Real-time insights and AI-generated reports updated continuously with the latest NFL data.
+            Real-time insights and analytics reports updated continuously with the latest NFL data.
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {sampleReports.map((report, index) => (
+          {reports.map((report, index) => (
             <Card key={index} className="border-border hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -94,7 +94,7 @@ const StatsPreview = () => {
               <Target className="w-5 h-5 text-accent" />
               <span>Top Performance Index</span>
             </CardTitle>
-            <CardDescription>AI-calculated performance rankings updated daily</CardDescription>
+            <CardDescription>Performance rankings updated daily</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
