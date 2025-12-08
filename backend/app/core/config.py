@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: Optional[str] = os.getenv("AWS_SECRET_ACCESS_KEY")
     
     # vLLM Service Configuration (for self-hosted LLM)
-    VLLM_MODEL_NAME: str = os.getenv("VLLM_MODEL_NAME", "TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+    VLLM_MODEL_NAME: str = os.getenv("VLLM_MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct-AWQ")
     VLLM_SERVICE_URL: str = Field(
         default="http://18.226.180.255:8001",
         description="Base URL for self-hosted vLLM service"
