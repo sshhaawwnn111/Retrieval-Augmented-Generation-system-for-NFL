@@ -20,7 +20,7 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy only backend code
-COPY ./app /app/app
+COPY ./src /app/src
 
 # Default command: run the embedding script
-CMD ["python", "app/api/embed_news.py"]
+CMD ["python", "src/embed_news.py"]

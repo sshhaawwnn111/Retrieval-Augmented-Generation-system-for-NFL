@@ -5,7 +5,6 @@ import os
 
 model = SentenceTransformer("all-MiniLM-L6-v2")  # <--- sentence transformer model used
 
-
 try:
     conn = psycopg2.connect(
         dbname=os.getenv("DB_NAME"),
@@ -20,10 +19,8 @@ try:
 except Exception as e:
     print(f"Database connection failed: {e}")
 
-
 cur.execute("SELECT id, notes, analysis FROM nfl_news WHERE embedding IS NULL;")
 rows = cur.fetchall()
-
 
 batch_size = 128
 total = len(rows)
@@ -46,7 +43,6 @@ for i in range(0, total, batch_size):
     except Exception as e:
         print(f"❌ Error on batch {i}-{i+batch_size}: {e}")
         time.sleep(1)
-
 
 conn.commit()
 cur.close()
