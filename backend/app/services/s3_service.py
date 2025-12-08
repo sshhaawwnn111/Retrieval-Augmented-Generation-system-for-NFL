@@ -5,6 +5,25 @@ from app.core.config import settings
 import re
 from datetime import datetime
 
+def normalize_title(title: str) -> str:
+    """
+    Normalize a section title so that:
+    - leading numbers like "1." or "2)" are removed
+    - markdown **bold** is removed
+    - text is lowercased and trimmed
+    """
+    if not title:
+        return ""
+    
+    # Remove leading numbering like "1.", "2)", "3 -", etc.
+    title = re.sub(r"^\s*\d+\s*[\.\)\-]*\s*", "", title)
+
+    # Remove markdown bold markers
+    title = title.replace("**", "")
+
+    return title.strip().lower()
+
+
 def player_to_slug(name: str) -> str:
     return name.lower().replace(" ", "_")
 
@@ -47,14 +66,18 @@ def get_latest_player_report(bucket_name: str, team: str, player_name: str):
     content = obj["Body"].read().decode("utf-8")
 
     report = json.loads(content)
-    return map_report_to_ui(report, latest_key)
+    return map_report_to_ui(report)
 
 def map_report_to_ui(raw):
     # If it's not an injury report, return raw untouched
     if "analysis_sections" not in raw:
         return raw
 
-    sections = {s["title"].lower(): s["text"] for s in raw.get("analysis_sections", [])}
+    sections = {
+        normalize_title(s["title"]): s["text"]
+        for s in raw.get("analysis_sections", [])
+    }
+
 
     return {
         "player": raw["player"],

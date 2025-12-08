@@ -13,6 +13,9 @@ from app.core.secrets import get_database_credentials
 from app.api import llm_routes, agent_routes, s3_routes
 from app.agents.db_connection import DatabaseConnection
 
+from fastapi.middleware.cors import CORSMiddleware
+
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -122,7 +125,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/")
 async def root():

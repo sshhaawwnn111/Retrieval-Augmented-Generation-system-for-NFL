@@ -23,10 +23,13 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://localhost:8000",
+        "http://localhost:8080",
         "https://*.cloudfront.net",
         "https://*.amplifyapp.com",
         "https://app.ravens-rotowire.com",
         "https://ravens-rotowire.com",
+        "https://api.footballnewsai.com",
+        "https://api.ravens-rotowire.com/"
     ]
     
     # AWS Settings
