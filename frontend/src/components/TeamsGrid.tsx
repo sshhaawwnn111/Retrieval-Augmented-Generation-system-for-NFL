@@ -249,21 +249,6 @@ const ravensRoster = {
   ]
 };
 
-// Generate injury report based on player
-const generateInjuryReport = (playerName: string, teamName: string) => {
-  const week = 11;
-  return {
-    player: playerName,
-    team: teamName,
-    week: week,
-    status: "success",
-    currentStatus: `${playerName} has avoided injury designation on November 6th, indicating he is healthy enough to play in Week ${week}. He was not on the injury report for the previous weeks, suggesting he has been managing his workload and avoiding any significant issues.`,
-    medicalAnalysis: `Given the lack of specific injury details, it's challenging to pinpoint the exact nature of any potential concern. However, considering ${playerName}'s playing style and position demands, monitoring for minor strains or tweaks is standard protocol. A typical recovery period for such issues can range from 1-4 weeks, depending on severity. Re-injury risk assessment is ongoing.`,
-    impactAssessment: `${playerName}'s absence or limited participation in practice could impact the ${teamName}'s offense/defense. His skills and abilities are crucial to the team's success, and any limited involvement could lead to adjustments in overall team strategy and performance.`,
-    returnProjection: `Assuming ${playerName} avoids any significant setbacks, he is projected to be available for Week ${week}. However, workload and playing time may be managed based on ongoing health assessments and game situations.`
-  };
-};
-
 const getTeamInitials = (teamName: string) => {
   const words = teamName.split(" ");
   if (words.length >= 2) {
@@ -278,6 +263,9 @@ const TeamsGrid = () => {
   const [showPlayers, setShowPlayers] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
+  const [injuryReport, setInjuryReport] = useState(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleTeamClick = (teamName: string) => {
     setSelectedTeam(teamName);
@@ -291,11 +279,34 @@ const TeamsGrid = () => {
     }
   };
 
-  const handlePlayerClick = (playerName: string) => {
+  const handlePlayerClick = async (playerName: string) => {
     setSelectedPlayer(playerName);
     setShowPlayers(false);
     setShowReport(true);
+    await fetchInjuryReport(playerName, teamsData[selectedTeam!].name.toLowerCase());
   };
+
+  async function fetchInjuryReport(player: string, team: string) {
+    setError(null);
+    setLoadingReport(true);
+
+    try {
+      const url = `https://api.ravens-rotowire.com/api/v1/s3/reports/latest?player=${encodeURIComponent(player)}&team=${encodeURIComponent(team)}`;
+
+      const res = await fetch(url);
+
+      if (!res.ok) {
+        throw new Error(`Failed with status ${res.status}`);
+      }
+
+      const data = await res.json();
+      setInjuryReport(data);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoadingReport(false);
+    }
+  }
 
   const handleCloseAll = () => {
     setShowAgents(false);
@@ -304,10 +315,6 @@ const TeamsGrid = () => {
     setSelectedTeam(null);
     setSelectedPlayer(null);
   };
-
-  const injuryReport = selectedPlayer && selectedTeam 
-    ? generateInjuryReport(selectedPlayer, selectedTeam) 
-    : null;
 
   const isRavens = selectedTeam === "Baltimore Ravens";
   const currentTeamPlayers = selectedTeam && teamsData[selectedTeam] ? teamsData[selectedTeam].players : [];
@@ -492,91 +499,112 @@ const TeamsGrid = () => {
 
       {/* Injury Report Dialog */}
       <Dialog open={showReport} onOpenChange={(open) => !open && handleCloseAll()}>
-        <DialogContent className="max-w-3xl bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-2xl flex items-center gap-2">
-              <Activity className="w-6 h-6 text-accent" />
-              Injury Report - {selectedPlayer}
-            </DialogTitle>
-          </DialogHeader>
-          {injuryReport && (
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="space-y-6 p-2">
-                {/* Header Info */}
-                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Player</p>
-                    <p className="text-xl font-bold">{injuryReport.player}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground">Team</p>
-                    <p className="text-lg font-semibold">{injuryReport.team}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Week</p>
-                    <p className="text-lg font-semibold">{injuryReport.week}</p>
-                  </div>
-                  <Badge className="bg-success/20 text-success border-success">
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    {injuryReport.status}
-                  </Badge>
-                </div>
+  <DialogContent className="max-w-3xl bg-card border-border">
+    <DialogHeader>
+      <DialogTitle className="text-2xl flex items-center gap-2">
+        <Activity className="w-6 h-6 text-accent" />
+        Injury Report - {selectedPlayer}
+      </DialogTitle>
+    </DialogHeader>
 
-                {/* Current Status */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-success" />
-                    <h3 className="text-lg font-semibold">Current Status</h3>
-                  </div>
-                  <p className="text-muted-foreground leading-relaxed pl-7">
-                    {injuryReport.currentStatus}
-                  </p>
-                </div>
+    {/* Loading */}
+    {loadingReport && (
+      <div className="p-6 text-center text-muted-foreground">
+        Loading latest injury report...
+      </div>
+    )}
 
-                {/* Medical Analysis */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-accent" />
-                    <h3 className="text-lg font-semibold">Medical Analysis</h3>
-                  </div>
-                  <p className="text-muted-foreground leading-relaxed pl-7">
-                    {injuryReport.medicalAnalysis}
-                  </p>
-                </div>
+    {/* Error */}
+    {error && (
+      <div className="p-6 text-center text-red-600">
+        {error}
+      </div>
+    )}
 
-                {/* Impact Assessment */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-warning" />
-                    <h3 className="text-lg font-semibold">Impact Assessment</h3>
-                  </div>
-                  <p className="text-muted-foreground leading-relaxed pl-7">
-                    {injuryReport.impactAssessment}
-                  </p>
-                </div>
-
-                {/* Return Projection */}
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Return Projection</h3>
-                  </div>
-                  <p className="text-muted-foreground leading-relaxed pl-7">
-                    {injuryReport.returnProjection}
-                  </p>
-                </div>
-
-                {/* Footer */}
-                <div className="pt-4 border-t border-border">
-                  <p className="text-xs text-muted-foreground text-center">
-                    Generated by Injury Agent • Data as of Week {injuryReport.week}
-                  </p>
-                </div>
+    {/* Actual injury report content */}
+    {injuryReport && !loadingReport && !error && (
+        <ScrollArea className="h-[500px] pr-4">
+          <div className="space-y-6 p-2">
+            
+            {/* Header Info */}
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div>
+                <p className="text-sm text-muted-foreground">Player</p>
+                <p className="text-xl font-bold">{injuryReport.player}</p>
               </div>
-            </ScrollArea>
-          )}
-        </DialogContent>
-      </Dialog>
+
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">Team</p>
+                <p className="text-lg font-semibold">{injuryReport.team}</p>
+              </div>
+
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Date</p>
+                <p className="text-lg font-semibold">{injuryReport.date}</p>
+              </div>
+
+              <Badge className="bg-success/20 text-success border-success">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                {injuryReport.status}
+              </Badge>
+            </div>
+
+            {/* Current Status */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-success" />
+                <h3 className="text-lg font-semibold">Current Status</h3>
+              </div>
+              <p className="text-muted-foreground leading-relaxed pl-7">
+                {injuryReport.currentStatus}
+              </p>
+            </div>
+
+            {/* Medical Analysis */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Activity className="w-5 h-5 text-accent" />
+                <h3 className="text-lg font-semibold">Medical Analysis</h3>
+              </div>
+              <p className="text-muted-foreground leading-relaxed pl-7">
+                {injuryReport.medicalAnalysis}
+              </p>
+            </div>
+
+            {/* Impact Assessment */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-warning" />
+                <h3 className="text-lg font-semibold">Impact Assessment</h3>
+              </div>
+              <p className="text-muted-foreground leading-relaxed pl-7">
+                {injuryReport.impactAssessment}
+              </p>
+            </div>
+
+            {/* Return Projection */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Clock className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Return Projection</h3>
+              </div>
+              <p className="text-muted-foreground leading-relaxed pl-7">
+                {injuryReport.returnProjection}
+              </p>
+            </div>
+
+            {/* Footer */}
+            <div className="pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground text-center">
+                Generated by Injury Agent • Data as of {injuryReport.date}
+              </p>
+            </div>
+
+          </div>
+        </ScrollArea>
+      )}
+    </DialogContent>
+  </Dialog>
     </section>
   );
 };

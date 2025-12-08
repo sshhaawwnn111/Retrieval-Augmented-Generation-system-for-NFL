@@ -1,17 +1,23 @@
 from fastapi import APIRouter, HTTPException
 
-from app.services.s3_service import get_s3_data
+from app.services.s3_service import get_latest_player_report
 from app.core.config import settings
 
 router = APIRouter()
 
-@router.get("/reports")
-async def get_all_s3_folders():
+@router.get("/reports/latest")
+async def get_latest_report(player: str, team: str):
     try:
-        data = get_s3_data(
+        report = get_latest_player_report(
             bucket_name=settings.S3_BUCKET_NAME,
-            json_file="reports/test_report.json",
+            team=team,
+            player_name=player
         )
-        return data
+
+        if not report:
+            raise HTTPException(status_code=404, detail="No reports found for this player/team")
+
+        return report
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

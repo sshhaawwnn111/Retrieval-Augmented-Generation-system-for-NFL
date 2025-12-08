@@ -141,7 +141,7 @@ const ServicesGrid = () => {
       setShowReport(false);
       
       try {
-        const response = await fetch('/reports/josh_allen_analysis.json');
+        const response = await fetch('');
         const data = await response.json();
         setReportData(data);
         
@@ -214,7 +214,7 @@ const ServicesGrid = () => {
                   key={index}
                   className="flex flex-col items-center gap-3 p-4 rounded-lg hover:bg-muted/50 transition-colors group"
                   onClick={() => {
-                    setSelectedTeam(team)
+                    setSelectedTeam(team.name)
                     setIsDialogOpen(true)}}
                 >
                   {/* <div className="w-24 h-24 rounded-full overflow-hidden bg-background border-2 border-border group-hover:border-accent transition-colors flex items-center justify-center p-2">
