@@ -97,3 +97,17 @@ class InjuryReportResponse(BaseModel):
     players: List[str] = Field(..., description="Players analyzed")
     report: str = Field(..., description="Combined injury report")
     status: str = Field(..., description="Status of request")
+
+
+class GenericAnalysisRequest(BaseModel):
+    query: str = Field(..., description="Query or subject to analyze")
+    k: Optional[int] = Field(10, description="Number of candidates to retrieve")
+    top_n: Optional[int] = Field(5, description="Number of top documents to return after rerank")
+    filters: Optional[Dict[str, Any]] = Field(None, description="Optional filters for retrieval")
+
+
+class GenericAnalysisResponse(BaseModel):
+    content: Optional[str] = Field(None, description="Generated analysis text")
+    verification: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Verification results if any")
+    retrieved_documents: Optional[List[Dict[str, Any]]] = Field(default_factory=list, description="Retrieved documents used for analysis")
+    status: str = Field("success", description="Status of the request")

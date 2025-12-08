@@ -1,13 +1,15 @@
 import logging
 import asyncio
 from app.agents.prompts.news_prompt import NEWS_PROMPT
+from app.agents.verifier_agent import CitationVerifierLLM
 
 logger = logging.getLogger(__name__)
 
 class NewsAgent:
-    def __init__(self, llm, retriever_client):
+    def __init__(self, llm, retriever_client, verifier=None):
         self.llm = llm
         self.retriever_client = retriever_client
+        self.verifier = verifier or CitationVerifierLLM(llm)
 
     async def retrieve_context(self, query: str, k: int = 10, top_n: int = 5):
         try:
@@ -67,7 +69,45 @@ class NewsAgent:
             logger.warning(f"No off-field news documents found for query: {query}")
             return None
 
-        return await self.analyze_news_from_documents(query, documents)
+        analysis_text = await self.analyze_news_from_documents(query, documents)
+
+        verification_results = []
+        max_retries = 1
+
+        for attempt in range(max_retries + 1):
+            try:
+                verification_results = await self.verifier.verify(
+                    documents_json={"documents": documents},
+                    generated_text=analysis_text
+                )
+
+                if not verification_results:
+                    logger.info("No citation found.")
+                    break
+
+                failed_checks = [v for v in verification_results if v['classification'] != 'supported']
+
+                if not failed_checks:
+                    logger.info(f"Correction successful on attempt {attempt+1}/{max_retries}")
+                    break
+
+                if attempt < max_retries:
+                    logger.warning(f"Verification found {len(failed_checks)} issues. Running auto-correction (Attempt {attempt+1}/{max_retries})...")
+                    analysis_text = await self.verifier.edit_report(
+                        generated_text=analysis_text,
+                        verification_results=verification_results,
+                        documents_json={"documents": documents}
+                    )
+
+            except Exception as e:
+                logger.error(f"Verification/Correction cycle failed: {e}")
+                break
+
+        return {
+            "content": analysis_text,
+            "verification": verification_results,
+            "retrieved_documents": documents
+        }
 
     async def summarize_to_one_sentence(self, subject: str, analysis_text: str):
         prompt = f"""
