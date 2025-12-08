@@ -1,5 +1,6 @@
 import os
 import logging
+import torch
 from typing import List
 
 from fastapi import FastAPI, HTTPException, Depends
@@ -46,6 +47,19 @@ async def lifespan(app: FastAPI):
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     logger.info(f"AWS Region: {settings.AWS_REGION}")
     
+    # Log GPU availability
+    logger.info(f"CUDA available: {torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        logger.info(f"CUDA device count: {torch.cuda.device_count()}")
+        logger.info(f"CUDA device name: {torch.cuda.get_device_name(0)}")
+        logger.info(f"CUDA version: {torch.version.cuda}")
+    else:
+        logger.warning("No CUDA devices detected")
+        logger.info(f"PyTorch version: {torch.__version__}")
+        logger.info(f"PyTorch built with CUDA: {torch.cuda.is_available()}")
+        logger.info(f"NVIDIA_VISIBLE_DEVICES: {os.environ.get('NVIDIA_VISIBLE_DEVICES', 'not set')}")
+        logger.info(f"CUDA_VISIBLE_DEVICES: {os.environ.get('CUDA_VISIBLE_DEVICES', 'not set')}")
+
     # Get database credentials - start with settings defaults
     db_password = settings.DATABASE_PASSWORD
     db_user = settings.DATABASE_USER
@@ -89,8 +103,25 @@ async def lifespan(app: FastAPI):
     logger.info("Starting retriever_reranker service")
     try:
         app.state.retriever = PGVectorRetriever()
-        app.state.reranker = ModelReranker(os.environ.get("RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L6-v2"))
+        app.state.reranker = ModelReranker(os.environ.get("RERANK_MODEL", "zeroentropy/zerank-1-small"))
         logger.info("Services initialized")
+
+        # === ADD THIS WARMUP ===
+        logger.info("Warming up reranker to trigger lazy-loading...")
+        try:
+            # Running a dummy prediction forces the model to load its weights now
+            # instead of waiting for the first user request.
+            app.state.reranker.rerank_documents(
+                query="warmup", 
+                documents=[Document(content="warmup", metadata={})], 
+                top_n=1
+            )
+            logger.info("Reranker warmup complete.")
+        except Exception as e:
+            logger.error(f"Warmup failed: {e}")
+            # Optional: decide if you want to raise e and stop startup
+        # =======================
+
     except Exception as e:
         logger.exception("Failed to initialize service: %s", e)
         raise
@@ -138,10 +169,14 @@ def health():
 @app.post("/retrieve", response_model=List[Document])
 def retrieve(req: RetrieveRequest, db: DatabaseConnection = Depends(get_db) ):
     try:
+        # Check if request has filters, otherwise None
+        filters = getattr(req, "filters", None)
+        
         candidates = app.state.retriever.search(
             db,
             req.query,
             k=req.k,
+            filters=filters
         )
 
         docs_for_rerank: List[Document] = []
@@ -215,26 +250,42 @@ def rerank(query_and_docs: dict):
 @app.post("/retrieve_and_rerank", response_model=RetrieveAndRerankResponse)
 def retrieve_and_rerank(req: RetrieveAndRerankRequest, db: DatabaseConnection = Depends(get_db)):
     try:
+        logger.info(f"Retrieve and rerank request - query: '{req.query[:100]}...', k={req.k}, top_n={req.top_n}")
+        
+        # Check if request has filters, otherwise None
+        filters = getattr(req, "filters", None)
+
         # 1. retrieval
+        logger.info(f"Starting retrieval with k={req.k}")
         candidates = app.state.retriever.search(
             db, 
             req.query, 
             k=req.k,
+            filters=filters
         )
+        logger.info(f"Retrieved {len(candidates)} candidates from database")
 
         docs_for_rerank: List[Document] = []
         for d in candidates:
             meta = {
                 "doc_id": d.get("doc_id"),
+                "row_number": d.get("row_number"),
+                "player_name": d.get("player_name"),
                 "headline": d.get("headline"),
                 "date": d.get("date"),
                 "citation": d.get("citation"),
+                "injury_status": d.get("injury_status"),
+                "injury_detail": d.get("injury_detail"),
             }
             docs_for_rerank.append(Document(content=d.get("context_text", ""), metadata=meta))
+
+        logger.info(f"Prepared {len(docs_for_rerank)} documents for reranking")
+
 
         # 2. reranking
         top_n = req.top_n if req.top_n is not None else req.k
         reranked = app.state.reranker.rerank_documents(req.query, docs_for_rerank, top_n)
+        logger.info(f"Reranking complete, returning {len(reranked)} documents")
 
         # 3. Marshal response
         response_docs: List[RetrievedDocument] = []
@@ -247,11 +298,14 @@ def retrieve_and_rerank(req: RetrieveAndRerankRequest, db: DatabaseConnection = 
                     player_name=meta.get("player_name"),
                     headline=meta.get("headline"),
                     date=meta.get("date"),
+                    injury_status=meta.get("injury_status"),
+                    injury_detail=meta.get("injury_detail"),
                     citation=meta.get("citation") or "",
                     context_text=doc.content,
                 )
             )
 
+        logger.info(f"Successfully marshaled {len(response_docs)} response documents")
         return RetrieveAndRerankResponse(documents=response_docs)
 
     except Exception as e:
@@ -264,5 +318,6 @@ if __name__ == "__main__":
         "main:app",
         host="0.0.0.0",
         port=8002,
+        workers=1,
         reload=False
     )

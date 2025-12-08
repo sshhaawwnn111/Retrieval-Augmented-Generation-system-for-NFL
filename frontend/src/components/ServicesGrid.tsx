@@ -38,105 +38,121 @@ const teams = [
 
 const services = [
   {
-    icon: FileText,
-    title: "Executive Summary Reports",
-    description: "Comprehensive executive-level reports with key insights and strategic recommendations.",
-    features: ["Weekly Summaries", "Strategic Insights", "Decision Support"],
-    status: "Weekly",
+    icon: Activity,
+    title: "Injury Agent",
+    description: "AI-powered injury prediction and prevention system that monitors player health, identifies risk factors, and optimizes recovery protocols.",
+    features: ["Real-time Risk Assessment", "Recovery Optimization", "Injury Prevention Protocols"],
+    status: "24/7 Active",
     statusColor: "success",
     hasDialog: true,
     endpoint: "/api/v1/agents/injury/analyze",
     defaultPayload: { week_number: 11 }
   },
-  // {
-  //   icon: FileText,
-  //   title: "AI Scouting Reports",
-  //   description: "Comprehensive player analysis with predictive performance metrics and draft recommendations.",
-  //   features: ["Player Rankings", "Performance Predictions", "Injury Risk Assessment"],
-  //   status: "Live Reports",
-  //   statusColor: "success",
-  //   hasDialog: true
-  // },
-  // {
-  //   icon: Activity,
-  //   title: "Injury Analytics",
-  //   description: "Advanced injury prediction and recovery timeline analysis using machine learning models.",
-  //   features: ["Risk Modeling", "Recovery Timelines", "Load Management"],
-  //   status: "Daily Updates",
-  //   statusColor: "accent",
-  //   hasDialog: true,
-  //   endpoint: "/api/v1/agents/injury/analyze",
-  //   defaultPayload: { week_number: 11 }
-  // },
-  // {
-  //   icon: DollarSign,
-  //   title: "Contract Analysis",
-  //   description: "Smart contract evaluation with market value analysis and cap space optimization.",
-  //   features: ["Market Value", "Cap Impact", "Trade Analysis"],
-  //   status: "Real-time",
-  //   statusColor: "success",
-  //   hasDialog: true,
-  //   endpoint: "/api/v1/agents/injury/analyze",
-  //   defaultPayload: { week_number: 11 }
-  // },
-  // {
-  //   icon: TrendingUp,
-  //   title: "Performance Trends",
-  //   description: "Long-term performance trend analysis with season projection models.",
-  //   features: ["Trend Analysis", "Season Projections", "Comparative Analytics"],
-  //   status: "Live Data",
-  //   statusColor: "success",
-  //   hasDialog: true,
-  //   endpoint: "/api/v1/agents/injury/analyze",
-  //   defaultPayload: { week_number: 11 }
-  // },
-  // {
-  //   icon: Shield,
-  //   title: "Draft Intelligence",
-  //   description: "Comprehensive draft analysis with player potential and team fit recommendations.",
-  //   features: ["Draft Rankings", "Team Fit Scores", "Value Projections"],
-  //   status: "Draft Season",
-  //   statusColor: "accent",
-  //   hasDialog: true
-  // },
-  // {
-  //   icon: Target,
-  //   title: "Game Strategy",
-  //   description: "AI-powered game planning with opponent analysis and tactical recommendations.",
-  //   features: ["Opponent Analysis", "Play Calling", "Strategic Insights"],
-  //   status: "Game Week",
-  //   statusColor: "success",
-  //   hasDialog: true
-  // },
-  // {
-  //   icon: BarChart3,
-  //   title: "Advanced Metrics",
-  //   description: "Custom analytics dashboard with proprietary metrics and visualization tools.",
-  //   features: ["Custom Metrics", "Data Visualization", "Export Tools"],
-  //   status: "Always On",
-  //   statusColor: "accent",
-  //   hasDialog: true
-  // }
+  {
+    icon: TrendingUp,
+    title: "Performance Agent",
+    description: "Advanced performance tracking and optimization using machine learning to analyze player metrics, identify improvement areas, and maximize on-field output.",
+    features: ["Performance Metrics", "Training Optimization", "Game-day Readiness"],
+    status: "Live Tracking",
+    statusColor: "success",
+    hasDialog: true
+  },
+  {
+    icon: Activity,
+    title: "Injury Analytics",
+    description: "Advanced injury prediction and recovery timeline analysis using machine learning models.",
+    features: ["Risk Modeling", "Recovery Timelines", "Load Management"],
+    status: "Daily Updates",
+    statusColor: "accent",
+    hasDialog: true
+  },
+  {
+    icon: DollarSign,
+    title: "Contract Analysis",
+    description: "Smart contract evaluation with market value analysis and cap space optimization.",
+    features: ["Market Value", "Cap Impact", "Trade Analysis"],
+    status: "Real-time",
+    statusColor: "success",
+    hasDialog: true
+  },
+  {
+    icon: TrendingUp,
+    title: "Performance Trends",
+    description: "Long-term performance trend analysis with season projection models.",
+    features: ["Trend Analysis", "Season Projections", "Comparative Analytics"],
+    status: "Live Data",
+    statusColor: "success",
+    hasDialog: true
+  },
+  {
+    icon: Shield,
+    title: "Draft Intelligence",
+    description: "Comprehensive draft analysis with player potential and team fit recommendations.",
+    features: ["Draft Rankings", "Team Fit Scores", "Value Projections"],
+    status: "Draft Season",
+    statusColor: "accent",
+    hasDialog: true
+  },
+  {
+    icon: Target,
+    title: "Game Strategy",
+    description: "AI-powered game planning with opponent analysis and tactical recommendations.",
+    features: ["Opponent Analysis", "Play Calling", "Strategic Insights"],
+    status: "Game Week",
+    statusColor: "success",
+    hasDialog: true
+  },
+  {
+    icon: BarChart3,
+    title: "Advanced Metrics",
+    description: "Custom analytics dashboard with proprietary metrics and visualization tools.",
+    features: ["Custom Metrics", "Data Visualization", "Export Tools"],
+    status: "Always On",
+    statusColor: "accent",
+    hasDialog: true
+  }
 ];
+
+interface AnalysisSection {
+  title: string;
+  text: string;
+}
+
+interface ReportData {
+  player: string;
+  team: string;
+  date: string;
+  status: string;
+  analysis_sections: AnalysisSection[];
+}
 
 const ServicesGrid = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState(null);
-  
-  const handleTeamClick = (teamName: string) => {
-    if (teamName === "Baltimore Ravens") {
+  const [selectedTeam, setSelectedTeam] = useState("");
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+
+  const handleTeamClick = async (teamName: string) => {
+    if (teamName === "Buffalo Bills") {
       setSelectedTeam(teamName);
       setIsDialogOpen(false);
       setIsGenerating(true);
       setShowReport(false);
       
-      // Simulate report generation
-      setTimeout(() => {
+      try {
+        const response = await fetch('/reports/josh_allen_analysis.json');
+        const data = await response.json();
+        setReportData(data);
+        
+        setTimeout(() => {
+          setIsGenerating(false);
+          setShowReport(true);
+        }, 2000);
+      } catch (error) {
+        console.error('Failed to load report:', error);
         setIsGenerating(false);
-        setShowReport(true);
-      }, 3000);
+      }
     }
   };
   const handleServiceClick = async (service) => {
@@ -297,19 +313,35 @@ const ServicesGrid = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Report PDF Dialog */}
+      {/* Report Dialog */}
       <Dialog open={showReport} onOpenChange={setShowReport}>
-        <DialogContent className="max-w-6xl h-[90vh] bg-card border-border p-0">
-          <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="text-2xl">{selectedTeam} Executive Summary Report</DialogTitle>
+        <DialogContent className="max-w-4xl max-h-[90vh] bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">
+              {reportData?.player} - {selectedTeam} Analysis Report
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Generated: {reportData?.date} | Status: {reportData?.status}
+            </p>
           </DialogHeader>
-          <div className="flex-1 h-full p-6">
-            <iframe
-              src="/reports/ravens_report.pdf"
-              className="w-full h-full rounded-lg"
-              title="Ravens Report"
-            />
-          </div>
+          <ScrollArea className="h-[60vh] pr-4">
+            <div className="space-y-6 p-2">
+              {reportData?.analysis_sections
+                .filter((section, index, arr) => {
+                  // Deduplicate sections by title and text
+                  return arr.findIndex(s => s.title === section.title && s.text === section.text) === index;
+                })
+                .slice(0, 5) // Take only unique sections
+                .map((section, index) => (
+                  <div key={index} className="border-l-4 border-accent pl-4">
+                    <h3 className="font-semibold text-lg text-foreground mb-2">{section.title}</h3>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {section.text.replace(/\\cite\{\[doc_\d+\]\}/g, '')}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </section>

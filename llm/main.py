@@ -7,6 +7,8 @@ import logging
 import asyncio
 from contextlib import asynccontextmanager
 from typing import Optional
+import torch
+import subprocess
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -35,6 +37,18 @@ logger = logging.getLogger(__name__)
 engine: Optional[AsyncLLMEngine] = None
 
 
+def log_cuda_versions():
+    # Log PyTorch CUDA version
+    logger.info(f"PyTorch CUDA Version: {torch.version.cuda}")
+    # Log driver CUDA version from nvidia-smi
+    try:
+        result = subprocess.run(
+            ["nvidia-smi"], capture_output=True, text=True, check=True
+        )
+        logger.info("nvidia-smi output:\n" + result.stdout)
+    except Exception as e:
+        logger.warning(f"Could not run nvidia-smi: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -46,6 +60,17 @@ async def lifespan(app: FastAPI):
     
     # Startup: Initialize vLLM engine
     logger.info("Initializing vLLM engine...")
+    log_cuda_versions()  # Log CUDA versions at startup
+    
+    if torch.cuda.is_available():
+        gpu_name = torch.cuda.get_device_name(0)
+        gpu_mem = torch.cuda.get_device_properties(0).total_memory / 1024**3
+        logger.info(f"GPU: {gpu_name} ({gpu_mem:.2f} GB)")
+    else:
+        logger.warning("GPU: No CUDA device found! Running on CPU (Not recommended for vLLM)")
+
+    # Startup: Initialize vLLM engine
+    logger.info("Initializing vLLM engine...")
     logger.info(f"Model: {settings.model_name}")
     logger.info(f"Tensor Parallel Size: {settings.tensor_parallel_size}")
     logger.info(f"Data Type: {settings.model_dtype}")
@@ -55,14 +80,20 @@ async def lifespan(app: FastAPI):
             model=settings.model_name,
             revision=settings.model_revision,
             dtype=settings.model_dtype,
+            quantization=settings.quantization,
             tensor_parallel_size=settings.tensor_parallel_size,
             gpu_memory_utilization=settings.gpu_memory_utilization,
             max_model_len=settings.max_model_len,
             trust_remote_code=True,
+            enable_chunked_prefill=settings.enable_chunked_prefill,    # Prevents long prompts from blocking the GPU (Vital for T4)
+            enable_prefix_caching=settings.enable_prefix_caching,     # Reuses KV cache for shared system prompts/examples
+            max_num_seqs=8,                # Limits concurrent requests to prevent latency degradation
         )
         
         engine = AsyncLLMEngine.from_engine_args(engine_args)
         logger.info("vLLM engine initialized successfully")
+        logger.info(f"enable_prefix_caching: {settings.enable_prefix_caching}")
+        logger.info(f"enable_chunked_prefill: {settings.enable_chunked_prefill}")
         
     except Exception as e:
         logger.error(f"Failed to initialize vLLM engine: {e}")
@@ -241,5 +272,6 @@ if __name__ == "__main__":
         host=settings.service_host,
         port=settings.service_port,
         log_level=settings.log_level.lower(),
+        workers=1,
         reload=False
     )

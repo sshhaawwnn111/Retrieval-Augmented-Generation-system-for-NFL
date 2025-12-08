@@ -1,6 +1,4 @@
-from langchain_core.prompts import PromptTemplate
-
-text2sql_prompt_str = """
+TEXT2SQL_PROMPT = """
 You are an expert SQL query generator for NFL databases.
 
 DATABASE SCHEMA:

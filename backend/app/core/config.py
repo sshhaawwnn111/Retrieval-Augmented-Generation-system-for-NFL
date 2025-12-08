@@ -40,9 +40,9 @@ class Settings(BaseSettings):
         default="http://18.226.180.255:8001",
         description="Base URL for self-hosted vLLM service"
     )
-    RERANKER_SERVICE_URL: str = Field(
+    RETRIEVER_SERVICE_URL: str = Field(
         default="http://localhost:8002",
-        description="Base URL for reranker service"
+        description="Base URL for retriever service"
     )
     VLLM_TIMEOUT: float = Field(
         default=120.0,
@@ -85,9 +85,6 @@ class Settings(BaseSettings):
     
     # pgvector Settings
     EMBEDDING_DIMENSION: int = int(os.getenv("EMBEDDING_DIMENSION", "1536"))
-    
-    # Reranker Service Configuration
-    RERANKER_SERVICE_URL: Optional[str] = os.getenv("RERANKER_SERVICE_URL")
     
     class Config:
         env_file = ".env"

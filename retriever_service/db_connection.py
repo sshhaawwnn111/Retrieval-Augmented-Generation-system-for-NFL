@@ -88,7 +88,7 @@ class DatabaseConnection:
         
         try:
             self.cursor.execute(query, params)
-            if query_upper.startswith('SELECT'):
+            if query_upper.startswith('SELECT') or query_upper.startswith('WITH'):
                 return self.cursor.fetchall()
             else:
                 self.conn.commit()

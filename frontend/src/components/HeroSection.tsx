@@ -30,7 +30,8 @@ const HeroSection = () => {
         </p>
         
         <p className="text-lg mb-8 text-white/80 max-w-2xl mx-auto">
-          From Chaos to Clarity: How AI Can Transform News into Actionable Intelligence for NFL Front Offices
+          Revolutionizing NFL front office operations with intelligent reports, 
+          injury analysis, contract evaluation, and data-driven insights.
         </p>
 
         {/* <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

@@ -1,109 +1,129 @@
-import json
-from pathlib import Path
+import logging
+import asyncio
+from app.agents.prompts.performance_prompt import PERFORMANCE_PROMPT
 
-# Define a structured prompt for analyzing team performance
-PERFORMANCE_PROMPT = """
-You are a sports analytics expert for the Baltimore Ravens, focused on weekly player and team performance.
-
-CONTEXT DATA:
-{context}
-
-TASK: Analyze the data and provide an in-depth performance summary for {query}.
-
-REQUIRED OUTPUT FORMAT:
-1. **Team Summary**: Overall team performance and key metrics (offense, defense, efficiency)
-2. **Top Performers**: Highlight standout players and stats
-3. **Areas for Improvement**: Notable weaknesses or risks
-4. **Analyst Insights**: Data-driven commentary or suggestions
-"""
-
+logger = logging.getLogger(__name__)
 
 
 class PerformanceAgent:
     """
-    PerformanceAgent handles player and team analytics based on JSON reports or database data.
-    It connects the Ravens database and contextual data files to generate analytical summaries.
+    PerformanceAgent mirrors the structure of InjuryAgent exactly.
+    It retrieves context via RetrieverClient, formats it, builds an
+    LLM prompt using PERFORMANCE_PROMPT, and generates analysis.
     """
 
-    def __init__(self, llm, database_connection=None, data_dir="data"):
+    def __init__(self, llm, retriever_client):
         self.llm = llm
-        self.db = database_connection
-        self.chain = PERFORMANCE_PROMPT | llm
-        self.data_dir = Path(data_dir)
+        self.retriever_client = retriever_client
 
-    def _load_performance_data(self, filename="test_report.json"):
-        """
-        Load local performance report data from the data directory.
-        """
-        path = self.data_dir / filename
-        if not path.exists():
-            raise FileNotFoundError(f"Performance file not found: {path}")
-        with open(path, "r") as f:
-            return json.load(f)
-
-    def _fetch_player_data(self, player_name=None):
-        """
-        Optionally fetch detailed player stats from the database.
-        Works even if DatabaseConnection doesn't define a .query() method.
-        """
-        if not self.db:
-            return None
-
+    async def retrieve_context(self, query: str, k: int = 10, top_n: int = 5):
         try:
-            conn = self.db.conn if hasattr(self.db, "conn") else self.db
-            cursor = conn.cursor()
-
-            if player_name:
-                query = """
-                    SELECT name, position, team, stats
-                    FROM ravens.players
-                    WHERE name ILIKE %s;
-                """
-                cursor.execute(query, (player_name,))
-            else:
-                cursor.execute("SELECT name, position, team, stats FROM ravens.players;")
-
-            rows = cursor.fetchall()
-            players = [
-                {
-                    "name": r[0],
-                    "position": r[1],
-                    "team": r[2],
-                    "stats": r[3]
-                } for r in rows
-            ]
-            cursor.close()
-            return players
-
+            docs = await self.retriever_client.retrieve_and_rerank(
+                query=query, k=k, top_n=top_n
+            )
+            return docs
         except Exception as e:
-            print(f"⚠️  Database fetch failed: {e}")
-            return None
+            logger.error(f"PerformanceAgent retrieval error: {e}")
+            return []
 
+    def format_context_from_documents(self, documents: list) -> str:
+        if not documents:
+            return "No recent team or player performance data available."
 
-    def analyze_performance(self, query: str):
-        """
-        Combine contextual data and LLM reasoning for detailed analysis.
-        """
-        # Load context from local report
-        report_data = self._load_performance_data()
+        context_text = ""
+        for doc in documents:
+            date = doc.get("date", "Unknown date")
+            headline = doc.get("headline", "No headline")
+            context = doc.get("context_text", "")
+            citation = doc.get("citation", "")
 
-        # Optional DB enrichment
-        db_data = self._fetch_player_data()
+            context_text += f"[{date}] {headline}\n{context}\n"
+            if (citation):
+                context_text += f"Source: {citation}\n"
+            context_text += "\n"
 
-        context = {
-            "report_summary": report_data.get("summary"),
-            "metrics": report_data.get("metrics"),
-            "players": report_data.get("players"),
-            "notes": report_data.get("notes"),
-            "db_players": db_data
-        }
+        return context_text.strip()
 
-        context_str = json.dumps(context, indent=2)
+    async def analyze_performance_from_documents(self, query: str, documents: list):
+        context_text = self.format_context_from_documents(documents)
 
-        # Run through LLM chain
-        result = self.chain.invoke({
-            "context": context_str,
-            "query": query
-        })
+        prompt_text = PERFORMANCE_PROMPT.format(
+            query=query,
+            context=context_text
+        )
+
+        result = await self.llm.generate_text(
+            prompt=prompt_text,
+            system_prompt=(
+                "You are a professional NFL performance analyst. "
+                "Provide a clear, structured analysis of team and player performance."
+            ),
+            temperature=0.3,
+            max_tokens=512,
+            stop_sequences=["\n\n\n", "In conclusion"]
+        )
 
         return result
+
+    async def analyze_performance(self, query: str, k: int = 10, top_n: int = 5):
+        documents = await self.retrieve_context(query, k=k, top_n=top_n)
+
+        if not documents:
+            logger.warning(f"No performance documents found for query: {query}")
+            return None
+
+        return await self.analyze_performance_from_documents(query, documents)
+
+    async def summarize_to_one_sentence(self, subject: str, analysis_text: str) -> str:
+        summarization_prompt = f"""
+        Summarize the following performance analysis for {subject} into one clear sentence.
+        Capture overall effectiveness, standout metrics, and key takeaways.
+
+        Performance Analysis:
+        {analysis_text}
+        """
+
+        result = await self.llm.generate_text(
+            prompt=summarization_prompt,
+            system_prompt="You are a professional NFL performance analyst.",
+            temperature=0.7,
+            max_tokens=256
+        )
+
+        return f"{subject}: {result.content.strip()}"
+
+    async def _analyze_single_subject(self, subject: str, week_number: int):
+        query = f"{subject} performance week {week_number}"
+
+        try:
+            analysis = await self.analyze_performance(query)
+
+            if not analysis:
+                return f"{subject}: No recent performance data available"
+
+            summary = await self.summarize_to_one_sentence(subject, analysis.content)
+            return summary
+
+        except Exception as e:
+            logger.error(f"Error analyzing performance for {subject}: {e}")
+            return f"{subject}: Data unavailable ({str(e)})"
+
+    async def generate_performance_report(self, subjects: list[str], week_number: int) -> str:
+        logger.info(f"Starting parallel performance analysis for {len(subjects)} subjects")
+
+        tasks = [
+            self._analyze_single_subject(subj, week_number)
+            for subj in subjects
+        ]
+
+        results = await asyncio.gather(*tasks)
+        report = "\n".join(results)
+
+        logger.info(f"Completed performance analysis for week {week_number}")
+        return report
+
+    async def evaluate_weekly_performance(self, subjects: list[str], week_number: int):
+        """
+        Coordinator-facing alias for generate_performance_report().
+        """
+        return await self.generate_performance_report(subjects, week_number)

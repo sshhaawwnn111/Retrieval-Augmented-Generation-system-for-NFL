@@ -38,8 +38,8 @@ class Settings(BaseSettings):
     DATABASE_NAME: Optional[str] = os.getenv("DATABASE_NAME", "Ravensrotowire")
     DATABASE_USER: Optional[str] = os.getenv("DATABASE_USER", "postgres")
     DATABASE_PASSWORD: Optional[str] = os.getenv("DATABASE_PASSWORD")
-    DATABASE_HOST: Optional[str] = os.getenv("DATABASE_HOST", "localhost")
-    DATABASE_READER_HOST: Optional[str] = os.getenv("DATABASE_READER_HOST")
+    DATABASE_HOST: Optional[str] = os.getenv("DATABASE_HOST", "ravensrotowire.cluster-c76ge8uom1mz.us-east-2.rds.amazonaws.com")
+    DATABASE_READER_HOST: Optional[str] = os.getenv("DATABASE_READER_HOST", "ravensrotowire.cluster-ro-c76ge8uom1mz.us-east-2.rds.amazonaws.com")
     DATABASE_PORT: int = int(os.getenv("DATABASE_PORT", "5432"))
     DATABASE_SSL: bool = os.getenv("DATABASE_SSL", "true").lower() == "true"
     USE_SECRETS_MANAGER: bool = os.getenv("USE_SECRETS_MANAGER", "true").lower() == "true"

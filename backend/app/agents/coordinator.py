@@ -1,20 +1,35 @@
 # backend/agents/coordinator_agent.py
 from datetime import datetime
+import logging
 
 from app.agents.injury_agent import InjuryAgent
+from app.agents.waiver_agent import WaiverAgent
+from app.agents.news_agent import NewsAgent
+from app.agents.performance_agent import PerformanceAgent
 
+logger = logging.getLogger(__name__)
+
+
+
+logger = logging.getLogger(__name__)
 class CoordinatorAgent:
     """
-    Coordinates all player injury analyses and produces a summarized
-    team-wide injury report for a given week.
+    Coordinates all player-focused analysis across injuries, waiver transactions,
+    off-field news, and weekly performance. Produces unified team-wide summaries
+    for weekly reporting.
     """
 
-    def __init__(self, llm, db):
+    def __init__(self, llm, retriever_client, db=None):
         self.llm = llm
         self.db = db
-        self.injury_agent = InjuryAgent(llm, db)
 
-        # Default starting lineup (you can update dynamically)
+        # Sub-agents
+        self.injury_agent = InjuryAgent(llm, retriever_client)
+        self.waiver_agent = WaiverAgent(llm, retriever_client)
+        self.news_agent = NewsAgent(llm, retriever_client)
+        self.performance_agent = PerformanceAgent(llm, retriever_client)
+
+        # Default starting lineup (can be dynamically updated)
         self.starting_players = [
             # Offense
             "Lamar Jackson", "Zay Flowers", "Mark Andrews", "Rashod Bateman",
@@ -26,72 +41,72 @@ class CoordinatorAgent:
             "Michael Pierce", "Brandon Stephens", "Arthur Maulet"
         ]
 
-    def generate_weekly_report(self, week_number: int):
+    # -------------------------------------------------------------------------
+    # MAIN WEEKLY REPORT
+    # -------------------------------------------------------------------------
+
+    async def generate_full_weekly_report(self, week_number: int):
         """
-        Generate a one-sentence injury summary for each starting player for the given week.
-        Combines them into a single team report.
-        """
-
-        full_report = []
-        for player in self.starting_players:
-            query = f"{player} injury status week {week_number}"
-            try:
-                analysis = self.injury_agent.analyze_injury(query)
-                summary_sentence = self.summarize_injury_sentence(player, analysis)
-                full_report.append(summary_sentence)
-            except Exception as e:
-                full_report.append(f"{player}: Data unavailable ({str(e)})")
-
-        # Combine into one full report
-        report_text = "\n".join(full_report)
-
-        # Save to DB for tracking historical reports
-        self.save_weekly_report_to_db(week_number, report_text)
-
-        return report_text
-
-    async def summarize_injury_sentence(self, player_name: str, analysis_text: str) -> str:
-        """
-        Summarize the LLM's injury analysis into one sentence per player.
-        Uses the LLM to condense the analysis into a concise statement.
+        Calls all sub-agents (injury, waiver, news, performance) and composes
+        a unified weekly report for front-office use.
         """
 
-        summarization_prompt = f"""
-        Summarize the following injury analysis for {player_name} into one concise sentence.
-        The summary should clearly state their current injury status, recovery outlook,
-        and whether they are expected to play in the given week.
+        injuries = await self.injury_agent.generate_team_injury_report(self.starting_players)
+        waivers = await self.waiver_agent.generate_waiver_report(self.starting_players)
+        news_items = await self.news_agent.generate_news_report(self.starting_players)
+        performance = await self.performance_agent.generate_performance_report(self.starting_players)
 
-        Injury Analysis:
-        {analysis_text}
+        report_prompt = f"""
+        Produce a polished, executive-ready NFL team operations report for Week {week_number}.
+        Structure the response in four sections:
+
+        1. Injury Report:
+           {injuries}
+
+        2. Waiver & Contract Moves:
+           {waivers}
+
+        3. Off-Field News & Behavior:
+           {news_items}
+
+        4. Weekly Performance Assessment:
+           {performance}
+
+        Final output should be concise, professional, and ready for a GM or coaching staff briefing.
         """
-
-        result = await self.llm.generate_text(
-            prompt=summarization_prompt,
-            system_prompt="You are a professional NFL injury analyst.",
-            temperature=0.7,
+        final_report = await self.llm.generate_text(
+            prompt=report_prompt,
+            system_prompt="You are a professional NFL team operations analyst.",
+            temperature=0.3,
             max_tokens=512
         )
-        return f"{player_name}: {result.content.strip()}"
+
+        if self.db:
+            self.save_weekly_report_to_db(week_number, final_report)
+
+        return final_report
+
+    # -------------------------------------------------------------------------
+    # DATABASE STORAGE
+    # -------------------------------------------------------------------------
 
     def save_weekly_report_to_db(self, week_number: int, report_text: str):
         """
-        Store the generated weekly report in a table `injury_reports`.
-        Creates the table if it doesn't exist.
+        Store the generated weekly report in table `team_reports`.
+        Creates the table if it does not exist.
         """
-        # Create table using db.execute_query()
         self.db.execute_query("""
-            CREATE TABLE IF NOT EXISTS injury_reports (
+            CREATE TABLE IF NOT EXISTS team_reports (
                 id SERIAL PRIMARY KEY,
                 week_number INTEGER,
                 report_text TEXT,
                 created_at TIMESTAMP DEFAULT NOW()
-            )
+            );
         """)
 
-        # Insert report
         self.db.execute_query(
             """
-            INSERT INTO injury_reports (week_number, report_text, created_at)
+            INSERT INTO team_reports (week_number, report_text, created_at)
             VALUES (%s, %s, %s)
             """,
             (week_number, report_text, datetime.now())
@@ -99,10 +114,16 @@ class CoordinatorAgent:
 
     def get_past_report(self, week_number: int):
         """
-        Retrieve a previously generated weekly injury report from the database.
+        Retrieve the most recent weekly report from the database.
         """
         result = self.db.execute_query(
-            "SELECT report_text FROM injury_reports WHERE week_number = %s ORDER BY created_at DESC LIMIT 1",
+            """
+            SELECT report_text
+            FROM team_reports
+            WHERE week_number = %s
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
             (week_number,)
         )
         return result[0][0] if result else None

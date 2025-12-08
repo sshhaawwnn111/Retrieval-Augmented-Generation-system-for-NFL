@@ -20,6 +20,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Filter out security scan noise
+class SecurityScanFilter(logging.Filter):
+    """Filter out known security scanning patterns"""
+    SCAN_PATTERNS = [
+        'phpunit',
+        'eval-stdin.php',
+        'vendor/phpunit',
+        'config-create',
+        '/containers/json',
+        'invokefunction',
+        'allow_url_include',
+    ]
+    
+    def filter(self, record):
+        # Only filter INFO level messages from uvicorn.access
+        if record.name == "uvicorn.access" and record.levelno == logging.INFO:
+            message = record.getMessage()
+            # Filter out security scan attempts
+            return not any(pattern in message for pattern in self.SCAN_PATTERNS)
+        return True
+
+access_logger = logging.getLogger("uvicorn.access")
+access_logger.addFilter(SecurityScanFilter())
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -123,7 +146,8 @@ async def health_check():
         
         # vLLM Service
         "vllm": {
-            "service_url": settings.VLLM_SERVICE_URL,
+            "llm service_url": settings.VLLM_SERVICE_URL,
+            "retriever service_url": settings.RETRIEVER_SERVICE_URL,
             "model_name": settings.VLLM_MODEL_NAME,
             "timeout": settings.VLLM_TIMEOUT,
             "max_retries": settings.VLLM_MAX_RETRIES,
@@ -144,11 +168,6 @@ async def health_check():
             "name": settings.DATABASE_NAME,
             "ssl_enabled": settings.DATABASE_SSL,
             "reader_host": settings.DATABASE_READER_HOST or "not_configured",
-        },
-        
-        # Reranker
-        "reranker": {
-            "service_url": settings.RERANKER_SERVICE_URL or "not_configured",
         },
         
         # CORS
