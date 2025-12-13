@@ -28,6 +28,7 @@ class Settings(BaseSettings):
         "https://*.amplifyapp.com",
         "https://app.ravens-rotowire.com",
         "https://ravens-rotowire.com",
+        "https://footballnewsai.com",
         "https://api.footballnewsai.com",
         "https://api.ravens-rotowire.com/"
     ]
